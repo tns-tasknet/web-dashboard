@@ -15,3 +15,7 @@
 }}>List all accounts</button>
 
 {JSON.stringify(users)}
+
+<br>
+thing
+{JSON.stringify(data)}
