@@ -3,7 +3,7 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { sveltekitCookies } from "better-auth/svelte-kit";
 import { getRequestEvent } from "$app/server";
 
-import { PrismaClient } from "@prisma-app/client";
+import { PrismaClient } from "@prisma/client";
 import { admin, organization } from "better-auth/plugins";
 import { expo } from "@better-auth/expo";
 
