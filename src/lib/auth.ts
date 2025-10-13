@@ -19,7 +19,12 @@ export const auth = betterAuth({
 	trustedOrigins: [
 		'http://localhost:8081',
 		'http://localhost',
+<<<<<<< HEAD
 		'https://prod-tns-tasknet-usm.vercel.app'
+=======
+		'https://prod-tns-tasknet-usm.vercel.app',
+        '*'
+>>>>>>> d7a4b8f (cors fix)
 	],
 	plugins: [expo(), admin(), organization(), sveltekitCookies(getRequestEvent)]
 });
