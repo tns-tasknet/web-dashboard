@@ -16,11 +16,6 @@ export const auth = betterAuth({
 	emailAndPassword: {
 		enabled: true
 	},
-	trustedOrigins: [
-		'http://localhost:8081',
-		'http://localhost',
-		'https://prod-tns-tasknet-usm.vercel.app',
-        '*'
-	],
+	trustedOrigins: [],
 	plugins: [expo(), admin(), organization(), sveltekitCookies(getRequestEvent)]
 });

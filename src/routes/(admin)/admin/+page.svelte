@@ -7,7 +7,8 @@
 </script>
 
 {JSON.stringify($session)}
-
+<br>
+<div class="btn btn-error">hello</div>
 TODO:
 Admin Dashboard
 - List all users
@@ -15,3 +16,5 @@ Admin Dashboard
 - List all organizations
 - Manage organizations
 - Sessions
+<br>
+

@@ -1,23 +1,22 @@
 <script lang="ts">
     import type { PageProps } from './$types';
-    import { authClient } from '$lib/client';
-    const session = authClient.useSession();
 
     let { data }: PageProps = $props();
 </script>
 
+<a href="/admin/organizations/create" class="btn btn-primary">Create Organization</a>
 {JSON.stringify(data)}
 
 <ul class="list bg-base-100 rounded-box shadow-md">
   
-  <li class="p-4 pb-2 text-xs opacity-60 tracking-wide">All users</li>
+  <li class="p-4 pb-2 text-xs opacity-60 tracking-wide">All organizations</li>
   
-  {#each data.users.users as user}
+  {#each data.organizations as organization}
   <li class="list-row">
-    <div><div class="size-10 rounded-box justify-center items-center flex capitalize text-2xl font-bold">{user.name.at(0)}</div></div>
+    <div><div class="size-10 rounded-box justify-center items-center flex capitalize text-lg font-bold">ORG</div></div>
     <div>
-      <div>{user.name}</div>
-      <div class="text-xs uppercase font-semibold opacity-60">{user.email}</div>
+      <div>{organization.name}</div>
+      <div class="text-xs font-semibold opacity-60">{organization.slug}</div>
     </div>
     <!-- svelte-ignore a11y_consider_explicit_label -->
     <button class="btn btn-square btn-ghost">

@@ -10,15 +10,14 @@ export const load = (async (event) => {
 	if (!session) redirect(307, '/login');
 	if (session.user.role !== 'admin') return error(403, 'No permission')
 
-	const users = await auth.api.listUserAccounts({
+	const users = await auth.api.listUsers({
 		query: {
-			query: {
-				searchValue: '',
-				searchOperator: 'contains'
-			}
+			searchValue: '',
+			searchOperator: "contains",
 		},
 		headers: event.request.headers
 	});
+
 	return {
 		users
 	};
