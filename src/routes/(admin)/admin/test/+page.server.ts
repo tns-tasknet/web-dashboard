@@ -11,16 +11,14 @@ export const load = (async (event) => {
 	if (!session) redirect(307, '/login');
 	if (session.user.role !== 'admin') return error(403, 'No permission');
 
-    const testCount = await prisma.test.count()
+	await prisma.report.create({
+		data: {
+			title: 'Title',
+			content: 'Content',
+			organizationId: event.url.searchParams.get('organizationId')!,
+			memberId: event.url.searchParams.get('memberId')
+		}
+	});
 
-    await prisma.test.create({
-        data: {
-            text: `Hello World, ${testCount}`
-        }
-    });
-
-    const test = await prisma.test.findMany()
-	return {
-        test
-    };
+	return {};
 }) satisfies PageServerLoad;

@@ -108,8 +108,7 @@ model Member {
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   role           String
   createdAt      DateTime
-  Report         Report?      @relation(fields: [reportId], references: [id])
-  reportId       Int?
+  Report         Report[]
 
   @@map("member")
 }
@@ -129,11 +128,22 @@ model Invitation {
 }
 
 model Report {
-  id             Int          @id @default(autoincrement())
-  title          String
-  content        String
+  id       Int            @id @default(autoincrement())
+  title    String
+  content  String
+  response String?
+  status   ReportProgress @default(PENDING)
 
-  assignees      Member[]
+  assignee Member? @relation(fields: [memberId], references: [id])
+  memberId String?
+
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
+}
+
+enum ReportProgress {
+  PENDING
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
 }

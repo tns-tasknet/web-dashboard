@@ -18,3 +18,5 @@ Admin Dashboard
 - Sessions
 <br>
 
+<a class="btn btn-primary" href="/admin/organizations">Organizations</a>
+<a class="btn btn-primary" href="/admin/users">Users</a>
