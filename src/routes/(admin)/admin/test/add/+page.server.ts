@@ -12,7 +12,7 @@ export const load = (async (event) => {
 
 	await auth.api.addMember({
 		body: {
-			userId: 'user-id',
+			userId: event.url.searchParams.get('userId')!,
 			role: ['member'],
 			organizationId: event.url.searchParams.get('organizationId')!
 		}
