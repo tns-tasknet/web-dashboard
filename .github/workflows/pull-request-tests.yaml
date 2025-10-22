@@ -3,9 +3,6 @@ name: PR Tests
 on:
   pull_request:
     types: [opened]
-  push:
-    branches: [main, dev]
-    
 
 concurrency:
   group: '${{ github.workflow }}-${{ github.head_ref || github.ref }}'
