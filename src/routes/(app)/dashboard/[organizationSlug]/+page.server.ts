@@ -17,6 +17,14 @@ export const load = (async (event) => {
 		headers: event.request.headers
 	});
 
+	const data = await auth.api.setActiveOrganization({
+		body: {
+			organizationSlug: event.params.organizationSlug
+		},
+		headers: event.request.headers
+	});
+	console.log(data);
+
 	const { role } = await auth.api.getActiveMemberRole({
 		// This endpoint requires session cookies.
 		headers: event.request.headers

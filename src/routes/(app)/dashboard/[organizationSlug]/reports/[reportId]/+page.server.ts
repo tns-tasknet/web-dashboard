@@ -10,6 +10,14 @@ export const load = (async (event) => {
 
 	if (!session) redirect(307, '/login');
 
+	const data = await auth.api.setActiveOrganization({
+		body: {
+			organizationSlug: event.params.organizationSlug
+		},
+		headers: event.request.headers
+	});
+	console.log(data);
+
 	const member = await auth.api.getActiveMember({
 		headers: event.request.headers
 	});

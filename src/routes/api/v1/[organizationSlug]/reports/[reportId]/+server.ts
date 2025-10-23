@@ -10,6 +10,14 @@ export const GET: RequestHandler = async (event) => {
 
 	if (!session) return new Response(null, { status: 401 });
 
+	const data = await auth.api.setActiveOrganization({
+		body: {
+			organizationSlug: event.params.organizationSlug
+		},
+		headers: event.request.headers
+	});
+	console.log(data);
+
 	const member = await auth.api.getActiveMember({
 		headers: event.request.headers
 	});
@@ -38,6 +46,13 @@ export const PATCH: RequestHandler = async (event) => {
 	});
 
 	if (!session) return new Response(null, { status: 401 });
+
+	const data = await auth.api.setActiveOrganization({
+		body: {
+			organizationSlug: event.params.organizationSlug
+		}
+	});
+	console.log(data);
 
 	const member = await auth.api.getActiveMember({
 		headers: event.request.headers
