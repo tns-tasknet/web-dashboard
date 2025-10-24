@@ -50,9 +50,9 @@ export const PATCH: RequestHandler = async (event) => {
 	const data = await auth.api.setActiveOrganization({
 		body: {
 			organizationSlug: event.params.organizationSlug
-		}
+		},
+		headers: event.request.headers
 	});
-	console.log(data);
 
 	const member = await auth.api.getActiveMember({
 		headers: event.request.headers
@@ -70,6 +70,8 @@ export const PATCH: RequestHandler = async (event) => {
 	});
 
 	if (member?.role !== 'owner' && report?.memberId !== member?.id)
+		return new Response(null, { status: 403 });
+	if (report?.status === 'COMPLETED' && member?.role !== 'owner')
 		return new Response(null, { status: 403 });
 	if (!report) return new Response(null, { status: 404 });
 
