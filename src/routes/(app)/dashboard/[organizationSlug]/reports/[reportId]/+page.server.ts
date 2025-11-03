@@ -16,7 +16,6 @@ export const load = (async (event) => {
 		},
 		headers: event.request.headers
 	});
-	console.log(data);
 
 	const member = await auth.api.getActiveMember({
 		headers: event.request.headers

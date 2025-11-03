@@ -10,12 +10,19 @@ export const load = (async (event) => {
 
 	if (!session) redirect(307, '/login');
 
-	const organization = await auth.api.getFullOrganization({
-		query: {
+	await auth.api.setActiveOrganization({
+		body: {
 			organizationSlug: event.params.organizationSlug
 		},
 		headers: event.request.headers
 	});
+
+	const { role } = await auth.api.getActiveMemberRole({
+		// This endpoint requires session cookies.
+		headers: event.request.headers
+	});
+
+	// TODO: Restrict who can access this route
 
 	const selfReports = await prisma.report.findMany({
 		where: {
