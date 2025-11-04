@@ -1,7 +1,7 @@
 import type { PageServerLoad } from './$types';
 import { prisma } from '$lib/server/prisma';
 import { auth } from '$lib/auth';
-import { redirect } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
 
 export const load = (async (event) => {
 	const session = await auth.api.getSession({
@@ -22,20 +22,20 @@ export const load = (async (event) => {
 		headers: event.request.headers
 	});
 
-	// TODO: Restrict who can access this route
+	if (role !== 'owner' && role !== 'admin') error(403);
 
-	const selfReports = await prisma.report.findMany({
+	const reports = await prisma.report.findMany({
 		where: {
-			assignee: {
-				userId: session.user.id
-			},
 			organization: {
 				slug: event.params.organizationSlug
 			}
+		},
+		orderBy: {
+			createdAt: 'desc'
 		}
 	});
 
 	return {
-		selfReports
+		reports
 	};
 }) satisfies PageServerLoad;
