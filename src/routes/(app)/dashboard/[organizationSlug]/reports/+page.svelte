@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -14,4 +15,7 @@ Make it look nicer
 
 -->
 <h1>REPORTS GO HERE</h1>
+<a href="/dashboard/{page.params.organizationSlug}/reports/create" class="btn btn-primary">
+	CREATE REPORT
+</a>
 <pre>{JSON.stringify(data, null, 4)}</pre>
