@@ -22,6 +22,7 @@ export const load = (async (event) => {
 		headers: event.request.headers
 	});
 
+	// Admin Role check
 	if (role !== 'owner' && role !== 'admin') error(403);
 
 	const reports = await prisma.report.findMany({
