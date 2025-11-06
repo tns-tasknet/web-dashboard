@@ -5,8 +5,8 @@
 	let { data }: PageProps = $props();
 	const session = authClient.useSession();
 
-    let email = $state('')
-    let password = $state('')
+	let email = $state('');
+	let password = $state('');
 </script>
 
 <div>
@@ -24,13 +24,13 @@
 			</button>
 		</div>
 	{:else}
-        <input class="bg-red-500 outline-8 outline-black" placeholder="email" bind:value={email}>
-        <input class="bg-yellow-800" placeholder="password" bind:value={password}>
+		<input class="bg-red-500 outline-8 outline-black" placeholder="email" bind:value={email} />
+		<input class="bg-yellow-800" placeholder="password" bind:value={password} />
 		<button
 			onclick={async () => {
 				await authClient.signIn.email({
 					email: email,
-                    password: password
+					password: password
 				});
 			}}
 		>
