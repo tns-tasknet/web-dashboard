@@ -109,6 +109,7 @@ model Member {
   role           String
   createdAt      DateTime
   Report         Report[]
+  messages       Message[]
 
   @@map("member")
 }
@@ -140,8 +141,21 @@ model Report {
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
 
+  messages Message[]
+
   createdAt DateTime  @default(now())
   updatedAt DateTime? @updatedAt
+}
+
+model Message {
+  id      String @id @default(uuid())
+  content String
+
+  sender   Member @relation(fields: [memberId], references: [id])
+  memberId String
+
+  report   Report? @relation(fields: [reportId], references: [id])
+  reportId Int?
 }
 
 enum ReportProgress {
