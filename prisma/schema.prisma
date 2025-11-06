@@ -156,6 +156,8 @@ model Message {
 
   report   Report? @relation(fields: [reportId], references: [id])
   reportId Int?
+
+  createdAt DateTime @default(now())
 }
 
 enum ReportProgress {
