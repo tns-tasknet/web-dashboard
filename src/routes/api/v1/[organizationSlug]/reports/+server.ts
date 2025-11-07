@@ -2,74 +2,57 @@ import type { RequestHandler } from './$types';
 import { auth } from '$lib/auth';
 import { prisma } from '$lib/server/prisma';
 import { json } from '@sveltejs/kit';
+import type { Prisma } from '@prisma/client';
+import { ReportProgress } from '@prisma/client';
 
 export const GET: RequestHandler = async (event) => {
-	const session = await auth.api.getSession({
-		headers: event.request.headers
-	});
+  const session = await auth.api.getSession({ headers: event.request.headers });
+  if (!session) return new Response(null, { status: 401 });
 
-	if (!session) return new Response(null, { status: 401 });
+  await auth.api.setActiveOrganization({
+    body: { organizationSlug: event.params.organizationSlug },
+    headers: event.request.headers
+  });
 
-	const data = await auth.api.setActiveOrganization({
-		body: {
-			organizationSlug: event.params.organizationSlug
-		},
-		headers: event.request.headers
-	});
+  const member = await auth.api.getActiveMember({ headers: event.request.headers });
 
-	const member = await auth.api.getActiveMember({
-		headers: event.request.headers
-	});
+  // Parámetros
+  const usp = event.url.searchParams;
+  const isPaginated = usp.get('paginated') === 'true';
+  const limitParam = Number(usp.get('limit'));
+  const offsetParam = Number(usp.get('offset'));
+  const q = (usp.get('q') ?? '').trim();
+  const take = Number.isFinite(limitParam) && limitParam > 0 && limitParam <= 100 ? limitParam : 30;
+  const skip = Number.isFinite(offsetParam) && offsetParam >= 0 ? offsetParam : 0;
 
-	const paginated = event.url.searchParams.get('paginated');
-	if (paginated === 'true' && (member?.role === 'owner' || member?.role === 'admin')) {
-		// Pagination API
-		const limit = event.url.searchParams.get('limit');
-		const offset = event.url.searchParams.get('offset');
+  // Filtro base
+  const where: Prisma.ReportWhereInput = {
+    organization: { is: { slug: event.params.organizationSlug } },
+    status: { not: ReportProgress.COMPLETED }, 
+    ...(member && member.role !== 'owner' && member.role !== 'admin'
+      ? { memberId: member.id }
+      : {})
+  };
 
-		// Validate skip and limit or set default values
-		let real_offset = Number(offset);
-		let real_take = Number(limit);
+  // Búsqueda simple
+  if (q) {
+    where.OR = [
+      { title:    { contains: q, mode: 'insensitive' } },
+      { content:  { contains: q, mode: 'insensitive' } },
+      { response: { contains: q, mode: 'insensitive' } }
+    ];
+  }
+ 
+  // Carga de datos
+  const [reports, total] = await Promise.all([
+    prisma.report.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take
+    }),
+    prisma.report.count({ where })
+  ]);
 
-		if (isNaN(Number(offset)) || !offset) {
-			real_offset = 0;
-		}
-
-		if (isNaN(Number(limit)) || !limit) {
-			real_take = 30;
-		}
-
-		const reports = await prisma.report.findMany({
-			where: {
-				organization: {
-					slug: event.params.organizationSlug
-				}
-			},
-			orderBy: {
-				createdAt: 'desc'
-			},
-			skip: real_offset,
-			take: real_take
-		});
-
-		const report_count = await prisma.report.count();
-
-		return json({
-			reports: reports,
-			total: report_count,
-			limit: real_take,
-			offset: real_offset
-		});
-	}
-
-	const reports = await prisma.report.findMany({
-		where: {
-			organization: {
-				slug: event.params.organizationSlug
-			},
-			memberId: member?.id
-		}
-	});
-
-	return json(reports);
+  return json({ reports, total, limit: take, offset: skip });
 };
