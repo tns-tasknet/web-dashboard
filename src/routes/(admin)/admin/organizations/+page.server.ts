@@ -3,22 +3,22 @@ import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 export const load = (async (event) => {
-    const session = await auth.api.getSession({
-        headers: event.request.headers
-    });
+	const session = await auth.api.getSession({
+		headers: event.request.headers
+	});
 
-    if (!session) redirect(307, '/login');
-    if (session.user.role !== 'admin') return error(403, 'No permission')
+	if (!session) redirect(307, '/login');
+	if (session.user.role !== 'admin') return error(403, 'No permission');
 
-    const organizations = await auth.api.listOrganizations({
-        query: {
-            searchValue: '',
-            searchOperator: "contains",
-        },
-        headers: event.request.headers
-    });
+	const organizations = await auth.api.listOrganizations({
+		query: {
+			searchValue: '',
+			searchOperator: 'contains'
+		},
+		headers: event.request.headers
+	});
 
-    return {
-        organizations
-    };
+	return {
+		organizations
+	};
 }) satisfies PageServerLoad;

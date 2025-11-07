@@ -6,7 +6,7 @@
 	let { data }: PageProps = $props();
 
 	let orgName = $state('');
-	let orgSlug = $derived(orgName.replaceAll(' ', '-').toLocaleLowerCase())
+	let orgSlug = $derived(orgName.replaceAll(' ', '-').toLocaleLowerCase());
 </script>
 
 <h1 class="text-3xl">Create Organization</h1>
@@ -30,10 +30,10 @@
 			keepCurrentActiveOrganization: false
 		});
 
-        console.log("DATA")
-        console.log(data)
-        console.log("ERROR")
-        console.log(error)
+		console.log('DATA');
+		console.log(data);
+		console.log('ERROR');
+		console.log(error);
 	}}
 >
 	Create that

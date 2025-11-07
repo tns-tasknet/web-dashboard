@@ -8,12 +8,12 @@ export const load = (async (event) => {
 	});
 
 	if (!session) redirect(307, '/login');
-	if (session.user.role !== 'admin') return error(403, 'No permission')
+	if (session.user.role !== 'admin') return error(403, 'No permission');
 
 	const users = await auth.api.listUsers({
 		query: {
 			searchValue: '',
-			searchOperator: "contains",
+			searchOperator: 'contains'
 		},
 		headers: event.request.headers
 	});

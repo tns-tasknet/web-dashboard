@@ -15,7 +15,8 @@
 		<a
 			href="/"
 			class="font-medium"
-			class:text-muted-foreground={page.route.id != '/' && page.route.id != '/(app)'}>Resumen</a
+			class:text-muted-foreground={page.route.id != '/' && page.route.id != '/(app)'}
+			>Resumen</a
 		>
 		<a
 			href="/reports"
