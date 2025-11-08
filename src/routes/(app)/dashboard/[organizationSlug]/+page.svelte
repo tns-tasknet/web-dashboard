@@ -81,6 +81,57 @@
 			show: false
 		}
 	};
+
+	const options2: ApexOptions = {
+		series: [52.8, 26.8, 20.4],
+		colors: ['#1C64F2', '#16BDCA', '#9061F9'],
+		chart: {
+			height: 420,
+			width: '100%',
+			type: 'pie'
+		},
+		stroke: {
+			colors: ['white']
+		},
+		plotOptions: {
+			pie: {
+				dataLabels: {
+					offset: -25
+				}
+			}
+		},
+		labels: ['Direct', 'Organic search', 'Referrals'],
+		dataLabels: {
+			enabled: true,
+			style: {
+				fontFamily: 'Inter, sans-serif'
+			}
+		},
+		legend: {
+			position: 'bottom',
+			fontFamily: 'Inter, sans-serif'
+		},
+		yaxis: {
+			labels: {
+				formatter: function (value) {
+					return value + '%';
+				}
+			}
+		},
+		xaxis: {
+			labels: {
+				formatter: function (value) {
+					return value + '%';
+				}
+			},
+			axisTicks: {
+				show: false
+			},
+			axisBorder: {
+				show: false
+			}
+		}
+	};
 </script>
 
 <div>Fechas Seleccionables [01 Oct 2025 - 31 Oct 2025] -- Refrescar lista</div>
@@ -114,6 +165,9 @@
 	</div>
 </div>
 
-<Chart {options} />
+<div class="flex flex-1">
+	<Chart class="flex flex-1" {options} />
+	<Chart class="flex flex-1" options={options2} />
+</div>
 <!-- TODO: STATS -->
 <pre>{JSON.stringify(data, null, 4)}</pre>
