@@ -1,85 +1,74 @@
 <script lang="ts">
 	import type { PageProps } from './$types';
-	import { authClient } from '$lib/client';
-	import { page } from '$app/state';
 
 	let { data }: PageProps = $props();
-
-	let startDate: Date = $state(new Date());
-	let endDate: Date = $state(new Date());
-
-	$inspect(startDate);
 
 	import type { ApexOptions } from 'apexcharts';
 	import { Chart } from '@flowbite-svelte-plugins/chart';
 
 	let options: ApexOptions = {
+		series: [
+			{
+				name: 'Ordenes Abiertas',
+				data: [
+					[new Date('2025-10-01'), 2],
+					[new Date('2025-10-02'), 10],
+					[new Date('2025-10-03'), 5],
+					[new Date('2025-10-04'), 20],
+					[new Date('2025-10-05'), 0],
+					[new Date('2025-10-06'), 3]
+				]
+			}
+		],
 		chart: {
-			height: '400px',
-			type: 'line',
-			fontFamily: 'Inter, sans-serif',
-			dropShadow: {
-				enabled: false
+			type: 'area',
+			stacked: false,
+			height: 350,
+			zoom: {
+				type: 'x',
+				enabled: true,
+				autoScaleYaxis: true
 			},
 			toolbar: {
-				show: false
-			}
-		},
-		tooltip: {
-			enabled: true,
-			x: {
-				show: false
+				autoSelected: 'zoom'
 			}
 		},
 		dataLabels: {
 			enabled: false
 		},
-		stroke: {
-			width: 6,
-			curve: 'smooth'
+		markers: {
+			size: 0
 		},
-		grid: {
-			show: true,
-			strokeDashArray: 4,
-			padding: {
-				left: 2,
-				right: 2,
-				top: -26
-			}
-		},
-		series: [
-			{
-				name: 'Clicks',
-				data: [6500, 6418, 6456, 6526, 6356, 6456],
-				color: '#1A56DB'
-			},
-			{
-				name: 'CPC',
-				data: [6456, 6356, 6526, 6332, 6418, 6500],
-				color: '#7E3AF2'
-			}
-		],
-		legend: {
-			show: false
-		},
-		xaxis: {
-			categories: ['01 Feb', '02 Feb', '03 Feb', '04 Feb', '05 Feb', '06 Feb', '07 Feb'],
-			labels: {
-				show: true,
-				style: {
-					fontFamily: 'Inter, sans-serif',
-					cssClass: 'text-xs font-normal fill-gray-500 dark:fill-gray-400'
-				}
-			},
-			axisBorder: {
-				show: false
-			},
-			axisTicks: {
-				show: false
+		fill: {
+			type: 'gradient',
+			gradient: {
+				shadeIntensity: 1,
+				inverseColors: false,
+				opacityFrom: 0.5,
+				opacityTo: 0,
+				stops: [0, 90, 100]
 			}
 		},
 		yaxis: {
-			show: false
+			labels: {
+				formatter: function (val: any) {
+					return (val / 1).toFixed(0);
+				}
+			},
+			title: {
+				text: 'N° de ordenes'
+			}
+		},
+		xaxis: {
+			type: 'datetime'
+		},
+		tooltip: {
+			shared: false,
+			y: {
+				formatter: function (val: any) {
+					return (val / 1).toFixed(0);
+				}
+			}
 		}
 	};
 
@@ -133,16 +122,29 @@
 			}
 		}
 	};
+
+	import { Datepicker, P } from 'flowbite-svelte';
+
+	let dateRange: { from: Date; to: Date } = $state({
+		from: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+		to: new Date()
+	});
 </script>
 
 <div class="flex flex-1 items-center pr-6">
 	<div class="flex flex-col">
-		<div class="flex items-center">
-			Inicio: <input bind:value={startDate} type="date" class="input ml-2" />
-		</div>
-		<div class="flex items-center">
-			Fin: <input bind:value={endDate} type="date" class="input ml-2" />
-		</div>
+		<Datepicker
+			firstDayOfWeek={1}
+			range
+			bind:rangeFrom={dateRange.from}
+			bind:rangeTo={dateRange.to}
+			color="pink"
+		/>
+		<P class="mt-4">
+			Selected range:
+			{dateRange.from ? dateRange.from.toLocaleDateString() : 'None'} -
+			{dateRange.to ? dateRange.to.toLocaleDateString() : 'None'}
+		</P>
 	</div>
 
 	<div class="flex flex-1 justify-end"><button class="btn btn-primary">Refrescar</button></div>
@@ -179,15 +181,15 @@
 </div>
 
 <div class="flex flex-1 gap-x-6 pt-6">
-	<div class="flex flex-1 flex-col bg-base-200">
-		<div class="text-3xl font-bold">asd</div>
+	<div class="flex flex-1 flex-col rounded-xl bg-base-200 p-4">
+		<div class="border-b border-b-gray-400 pb-1 text-3xl font-bold">
+			Ordenes abiertas por dia
+		</div>
 		<Chart class="flex flex-1" {options} />
 	</div>
 
-	<div class="flex flex-1 flex-col bg-base-200">
-		<div class="text-3xl font-bold">asd</div>
+	<div class="flex flex-1 flex-col rounded-xl bg-base-200 p-4">
+		<div class="border-b border-b-gray-400 pb-1 text-3xl font-bold">Tipo de Reportes</div>
 		<Chart class="flex flex-1" options={options2} />
 	</div>
 </div>
-<!-- TODO: STATS -->
-<pre>{JSON.stringify(data, null, 4)}</pre>
