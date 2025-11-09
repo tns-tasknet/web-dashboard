@@ -70,8 +70,13 @@
 				</a>
 			</li>
 
-			<li>
-				<a href="/dashboard/{page.params.organizationSlug}/reports">
+			<li
+				class="rounded-l-sm rounded-r-lg {page.route.id ===
+				'/(app)/dashboard/[organizationSlug]/orders'
+					? 'border-l-4 bg-gray-300 font-bold'
+					: ''}"
+			>
+				<a href="/dashboard/{page.params.organizationSlug}/orders">
 					<ClipboardList class="h-6 w-6" /> Orders
 				</a>
 			</li>
@@ -87,8 +92,13 @@
 				</a>
 			</li>
 
-			<li>
-				<a href="/dashboard/{page.params.organizationSlug}/reports">
+			<li
+				class="rounded-l-sm rounded-r-lg {page.route.id ===
+				'/(app)/dashboard/[organizationSlug]/technicians'
+					? 'border-l-4 bg-gray-300 font-bold'
+					: ''}"
+			>
+				<a href="/dashboard/{page.params.organizationSlug}/technicians">
 					<UserPen class="h-6 w-6" /> Technicians
 				</a>
 			</li>
