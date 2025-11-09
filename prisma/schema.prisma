@@ -101,15 +101,16 @@ model Organization {
 }
 
 model Member {
-  id             String       @id
+  id             String        @id
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   userId         String
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   role           String
   createdAt      DateTime
   Report         Report[]
   messages       Message[]
+  corrections    Corrections[]
 
   @@map("member")
 }
@@ -144,10 +145,25 @@ model Report {
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
 
-  messages Message[]
+  messages    Message[]
+  corrections Corrections[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime? @updatedAt
+}
+
+model Corrections {
+  id      String @id @default(cuid())
+  content String
+
+  author Member @relation(fields: [memberId], references: [id])
+
+  report   Report? @relation(fields: [reportId], references: [id])
+  reportId Int?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
+  memberId  String
 }
 
 model Message {
