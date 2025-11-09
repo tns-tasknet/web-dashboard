@@ -74,7 +74,7 @@
 		if (params.q.trim()) usp.set('q', params.q.trim());
 
 		try {
-			const res = await fetch(`/api/v1/${org}/reports?${usp.toString()}`, {
+			const res = await fetch(`/api/v1/${org}/orders?${usp.toString()}`, {
 				signal: controller.signal
 			});
 			if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -145,6 +145,10 @@
 			<option value={50}>50</option>
 		</select>
 	</div>
+
+	<div class="flex items-end justify-end md:col-span-1">
+		<a class="btn btn-primary" href={`/dashboard/${org}/orders/create`}> Crear orden </a>
+	</div>
 </div>
 
 <!-- Tabla -->
@@ -154,8 +158,8 @@
 			<tr>
 				<th class="w-24">ID</th>
 				<th>Título</th>
-				<th class="w-40">Creado</th>
-				<th class="w-48">Cerrado</th>
+				<th class="w-40">Estado</th>
+				<th class="w-48">Creado</th>
 				<th class="w-28 text-right">Acciones</th>
 			</tr>
 		</thead>
@@ -192,12 +196,12 @@
 					<tr>
 						<td class="font-mono">{String(r.id)}</td>
 						<td>{r.title ?? '—'}</td>
+						<td><div class="badge badge-outline">{r.status}</div></td>
 						<td>{fmtDate(r.createdAt)}</td>
-						<td><!--Pendiente--></td>
 						<td class="text-right">
 							<a
 								class="btn btn-ghost btn-sm"
-								href={`/dashboard/${page.params.organizationSlug}/reports/${r.id}`}
+								href={`/dashboard/${page.params.organizationSlug}/orders/${r.id}`}
 								>Ver</a
 							>
 						</td>

@@ -3,42 +3,49 @@
 	import { page } from '$app/state';
 
 	let { data, children } = $props();
+
+	const slug = $derived(page.params.organizationSlug);
+	const base = $derived(`/dashboard/${slug}`);
+
+	function isActive(path: string) {
+		const p = page.url.pathname;
+		return p === path || p.startsWith(path + '/');
+	}
 </script>
 
 <svelte:head>
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
-<div class="flex items-center space-x-4 border-b p-4">
-	<div class="flex space-x-4 px-4">
-		<!-- TODO: MODIFY THESE VALUES & ADD CONDITIONAL FOR ORGANIZATION -->
-		<a
-			href="/"
-			class="font-medium"
-			class:text-muted-foreground={page.route.id != '/' && page.route.id != '/(app)'}
-			>Resumen</a
-		>
-		<a
-			href="/reports"
-			class="font-medium"
-			class:text-muted-foreground={!page.route.id?.includes('reports')}>Reportes</a
-		>
-		<a
-			href="/"
-			class="font-medium"
-			class:text-muted-foreground={!page.route.id?.includes('trabajadores')}>Trabajadores</a
-		>
+<!-- Barra superior -->
+<div class="navbar bg-base-100 border-b">
+	<div class="navbar-start">
+		<a class="btn btn-ghost text-xl" href={base}>TaskNet</a>
 	</div>
 
-	<div class="flex flex-1 justify-end space-x-5 px-4">
-		{#if data.session.user}
-			<p>{data.session.user.name}</p>
-			<!-- TODO: DROPDOWN HERE -->
+	<div class="navbar-center">
+		<div class="tabs tabs-boxed">
+			<a href={base} class={"tab " + (isActive(base) ? "tab-active" : "")}>Resumen</a>
+			<a href={`${base}/orders`} class={"tab " + (isActive(`${base}/orders`) ? "tab-active" : "")}>Órdenes</a>
+			<a href={`${base}/technicians`} class={"tab " + (isActive(`${base}/technicians`) ? "tab-active" : "")}>Técnicos</a>
+			<a href={`${base}/reports`} class={"tab " + (isActive(`${base}/reports`) ? "tab-active" : "")}>Reportes</a>
+		</div>
+	</div>
+
+	<div class="navbar-end pr-4">
+		{#if data?.session?.user}
+			<div class="flex items-center gap-3">
+				<span class="text-sm opacity-80">{data.session.user.name}</span>
+				<!-- TODO: dropdown de cuenta -->
+			</div>
 		{:else}
-			<p>Sign In</p>
-			<!-- TODO: SIGN IN BUTTON HERE -->
+			<a class="btn btn-sm btn-primary" href="/login">Iniciar sesión</a>
 		{/if}
 	</div>
 </div>
 
-{@render children?.()}
+<!-- Contenido -->
+<div class="p-4">
+	{@render children?.()}
+</div>
+
