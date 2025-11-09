@@ -1,7 +1,7 @@
 <script lang="ts">
 	import favicon from '$lib/assets/favicon.svg';
 	import { page } from '$app/state';
-	import { Bell } from 'lucide-svelte';
+	import { Bell, ClipboardCheck, ClipboardList, LayoutDashboard, UserPen } from 'lucide-svelte';
 
 	let { data, children } = $props();
 </script>
@@ -43,29 +43,50 @@
 	</div>
 	<div class="drawer-side">
 		<label for="my-drawer-3" aria-label="close sidebar" class="drawer-overlay"></label>
-		<ul class="menu min-h-full w-80 bg-base-200 p-4">
+		<ul class="menu min-h-full w-80 gap-y-1 bg-base-200 p-4">
 			<!-- Sidebar content here -->
-			<div>ORG NAME</div>
+			<div class="flex items-center gap-x-4 rounded-lg bg-gray-200 p-2">
+				<div class="rounded-lg bg-purple-600 p-2 font-extrabold text-white">ON</div>
+
+				<div class="flex flex-col">
+					<div class="font-bold">Organization Name</div>
+					<div class="font-light">Organization slug</div>
+				</div>
+			</div>
+
 			<li
-				class=" rounded-r-lg {page.route.id === '/(app)/dashboard/[organizationSlug]'
-					? 'border-l-2 bg-gray-300'
+				class="mt-4 rounded-l-sm rounded-r-lg {page.route.id ===
+				'/(app)/dashboard/[organizationSlug]'
+					? 'border-l-4 bg-gray-300 font-bold'
 					: ''}"
 			>
-				<a href="/dashboard/{page.params.organizationSlug}">Dashboard</a>
+				<a href="/dashboard/{page.params.organizationSlug}">
+					<LayoutDashboard class="h-6 w-6" /> Dashboard
+				</a>
 			</li>
 
-			<li><a href="/dashboard/{page.params.organizationSlug}/reports">Orders</a></li>
+			<li>
+				<a href="/dashboard/{page.params.organizationSlug}/reports">
+					<ClipboardList class="h-6 w-6" /> Orders
+				</a>
+			</li>
 
 			<li
-				class=" rounded-r-lg {page.route.id ===
+				class="rounded-l-sm rounded-r-lg {page.route.id ===
 				'/(app)/dashboard/[organizationSlug]/reports'
-					? 'border-l-2 bg-gray-300'
+					? 'border-l-4 bg-gray-300 font-bold'
 					: ''}"
 			>
-				<a href="/dashboard/{page.params.organizationSlug}/reports">Reports</a>
+				<a href="/dashboard/{page.params.organizationSlug}/reports">
+					<ClipboardCheck class="h-6 w-6" /> Reportes
+				</a>
 			</li>
 
-			<li><a href="/dashboard/{page.params.organizationSlug}/reports">Technicians</a></li>
+			<li>
+				<a href="/dashboard/{page.params.organizationSlug}/reports">
+					<UserPen class="h-6 w-6" /> Technicians
+				</a>
+			</li>
 			{page.route.id}
 		</ul>
 	</div>
