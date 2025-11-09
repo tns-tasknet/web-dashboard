@@ -10,7 +10,7 @@ export const load = (async (event) => {
 
 	if (!session) redirect(307, '/login');
 
-	const data = await auth.api.setActiveOrganization({
+	await auth.api.setActiveOrganization({
 		body: {
 			organizationSlug: event.params.organizationSlug
 		},
@@ -21,93 +21,81 @@ export const load = (async (event) => {
 		headers: event.request.headers
 	});
 
-	if (isNaN(Number(event.params.reportId))) error(400, 'Hello World');
+	const idParam = event.params.reportId;
+	if (isNaN(Number(idParam))) error(400, 'Parámetro inválido: reportId');
 
 	const report = await prisma.report.findFirst({
 		where: {
-			organization: {
-				slug: event.params.organizationSlug
-			},
-			id: Number(event.params.reportId)
+			organization: { slug: event.params.organizationSlug },
+			id: Number(idParam)
 		},
 		include: {
+			// Mensajería en pausa: habilitar cuando retomemos chat
+			/*
 			messages: {
 				include: {
 					sender: {
 						include: {
 							user: {
-								select: {
-									id: true,
-									name: true,
-									email: true,
-									image: true,
-									role: true
-								}
+								select: { id: true, name: true, email: true, image: true, role: true }
 							}
 						}
 					}
 				},
-				orderBy: {
-					createdAt: 'desc'
+				orderBy: { createdAt: 'desc' }
+			},
+			*/
+			assignee: {
+				include: {
+					user: {
+						select: { id: true, name: true, email: true, image: true, role: true }
+					}
 				}
 			}
+			// FUTURO (si se soportan múltiples técnicos):
+			// technicians: {
+			//   include: { user: { select: { id: true, name: true, email: true, image: true } } }
+			// }
 		}
 	});
 
-	if (member?.role !== 'owner' && report?.memberId !== member?.id) error(403, 'Forbidden');
-	if (!report) error(404, 'Not found');
+	if (!report) error(404, 'Orden no encontrada');
 
-	return {
-		report
-	};
+	// Autorización simple: dueño/admin o miembro asignado
+	if (member?.role !== 'owner' && report?.memberId !== member?.id) error(403, 'Forbidden');
+
+	return { report };
 }) satisfies PageServerLoad;
 
+// Mensajería pausada: comentamos 'actions' para evitar POSTs al chat
+/*
 export const actions: Actions = {
 	default: async (event) => {
-		const session = await auth.api.getSession({
-			headers: event.request.headers
-		});
-
+		const session = await auth.api.getSession({ headers: event.request.headers });
 		if (!session) redirect(307, '/login');
 
 		await auth.api.setActiveOrganization({
-			body: {
-				organizationSlug: event.params.organizationSlug
-			},
+			body: { organizationSlug: event.params.organizationSlug },
 			headers: event.request.headers
 		});
 
-		const member = await auth.api.getActiveMember({
-			headers: event.request.headers
-		});
+		const member = await auth.api.getActiveMember({ headers: event.request.headers });
 
-		if (isNaN(Number(event.params.reportId))) error(400, 'Hello World');
+		const idParam = event.params.reportId;
+		if (isNaN(Number(idParam))) error(400, 'Parámetro inválido: reportId');
 
-		const report = await prisma.report.findFirst({
-			where: {
-				id: Number(event.params.reportId)
-			}
-		});
-
+		const report = await prisma.report.findFirst({ where: { id: Number(idParam) } });
 		if (!report) error(404);
-		// TODO: Add form validation
-		/*
-		const form = await superValidate(event, formSchema);
-		if (!form.valid) {
-			return fail(400, {
-				form
-			});
-		}
-		*/
-		const data = await event.request.formData();
+
+		// TODO: Validación con zod/superforms
+		const form = await event.request.formData();
+		const content = form.get('message')?.toString().trim();
+		if (!content) error(400, 'Mensaje vacío');
 
 		await prisma.message.create({
-			data: {
-				content: data.get('message')!.toString(),
-				memberId: member!.id,
-				reportId: report.id
-			}
+			data: { content, memberId: member!.id, reportId: report.id }
 		});
 		return {};
 	}
 };
+*/
