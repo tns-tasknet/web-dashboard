@@ -147,7 +147,7 @@
 		</P>
 	</div>
 
-	<div class="flex flex-1 justify-end"><button class="btn btn-primary">Refrescar</button></div>
+	<!--<div class="flex flex-1 justify-end"><button class="btn btn-primary">Refrescar</button></div>-->
 </div>
 
 <div class="flex flex-1 gap-x-2 pt-6">
