@@ -45,6 +45,11 @@
 		<label for="my-drawer-3" aria-label="close sidebar" class="drawer-overlay"></label>
 		<ul class="menu min-h-full w-80 gap-y-1 bg-base-200 p-4">
 			<!-- Sidebar content here -->
+
+			<div class="mb-4 flex items-center justify-center gap-x-4 p-2 text-4xl font-extrabold">
+				TNS TaskNet
+			</div>
+
 			<div class="flex items-center gap-x-4 rounded-lg bg-gray-200 p-2">
 				<div class="rounded-lg bg-purple-600 p-2 font-extrabold text-white">ON</div>
 
@@ -87,7 +92,6 @@
 					<UserPen class="h-6 w-6" /> Technicians
 				</a>
 			</li>
-			{page.route.id}
 		</ul>
 	</div>
 </div>
