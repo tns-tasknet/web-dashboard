@@ -29,7 +29,7 @@ export const GET: RequestHandler = async (event) => {
 	// Filtro base
 	const where: Prisma.ReportWhereInput = {
 		organization: { is: { slug: event.params.organizationSlug } },
-		status: { not: ReportProgress.COMPLETED },
+		status: ReportProgress.COMPLETED,
 		...(member && member.role !== 'owner' && member.role !== 'admin'
 			? { memberId: member.id }
 			: {})
