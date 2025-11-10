@@ -13,7 +13,7 @@
 {:else if !$organizations.data?.length}
 	<p>No organizations found.</p>
 {:else}
-	<ul class="list bg-base-100 rounded-box shadow-md">
+	<ul class="list rounded-box bg-base-100 shadow-md">
 		{#each $organizations.data as organization}
 			<li class="list-row">
 				<div>
@@ -28,7 +28,7 @@
 					<div class="text-xs font-semibold opacity-60">{organization.slug}</div>
 				</div>
 				<!-- svelte-ignore a11y_consider_explicit_label -->
-				<button class="btn btn-square btn-ghost">
+				<a href="/dashboard/{organization.slug}" class="btn btn-square btn-ghost">
 					<svg class="size-[1.2em]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
 						><g
 							stroke-linejoin="round"
@@ -38,7 +38,7 @@
 							stroke="currentColor"><path d="M6 3L20 12 6 21 6 3z"></path></g
 						></svg
 					>
-				</button>
+				</a>
 				<!-- svelte-ignore a11y_consider_explicit_label -->
 				<button class="btn btn-square btn-ghost">
 					<svg class="size-[1.2em]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"

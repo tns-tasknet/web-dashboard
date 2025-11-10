@@ -13,10 +13,9 @@ export const load = (async (event) => {
 
 	await prisma.report.create({
 		data: {
-			title: 'Title',
-			content: 'Content',
-			organizationId: event.url.searchParams.get('organizationId')!,
-			memberId: event.url.searchParams.get('memberId')
+			title: 'Title2',
+			content: 'Content2',
+			organizationId: event.url.searchParams.get('organizationId')!
 		}
 	});
 

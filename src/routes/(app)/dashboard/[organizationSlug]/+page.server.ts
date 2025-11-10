@@ -23,7 +23,6 @@ export const load = (async (event) => {
 		},
 		headers: event.request.headers
 	});
-	console.log(data);
 
 	const { role } = await auth.api.getActiveMemberRole({
 		// This endpoint requires session cookies.

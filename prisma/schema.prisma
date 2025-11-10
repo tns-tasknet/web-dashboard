@@ -101,14 +101,16 @@ model Organization {
 }
 
 model Member {
-  id             String       @id
+  id             String        @id
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   userId         String
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   role           String
   createdAt      DateTime
   Report         Report[]
+  messages       Message[]
+  corrections    Corrections[]
 
   @@map("member")
 }
@@ -128,11 +130,18 @@ model Invitation {
 }
 
 model Report {
-  id       Int            @id @default(autoincrement())
-  title    String
-  content  String
-  response String?
-  status   ReportProgress @default(PENDING)
+  id         Int            @id @default(autoincrement())
+  title      String
+  content    String
+  response   String?
+  status     ReportProgress @default(PENDING)
+  longitude  Decimal?
+  latitude   Decimal?
+  deviceId   String?
+  activities String[]
+  materials  String[]
+  startedAt  DateTime?
+  closedAt   DateTime?
 
   assignee Member? @relation(fields: [memberId], references: [id])
   memberId String?
@@ -140,8 +149,38 @@ model Report {
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
 
+  messages    Message[]
+  corrections Corrections[]
+
   createdAt DateTime  @default(now())
   updatedAt DateTime? @updatedAt
+}
+
+model Corrections {
+  id      String @id @default(cuid())
+  content String
+
+  author Member @relation(fields: [memberId], references: [id])
+
+  report   Report? @relation(fields: [reportId], references: [id])
+  reportId Int?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
+  memberId  String
+}
+
+model Message {
+  id      String @id @default(uuid())
+  content String
+
+  sender   Member @relation(fields: [memberId], references: [id])
+  memberId String
+
+  report   Report? @relation(fields: [reportId], references: [id])
+  reportId Int?
+
+  createdAt DateTime @default(now())
 }
 
 enum ReportProgress {

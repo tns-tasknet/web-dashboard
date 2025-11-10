@@ -1,5 +1,5 @@
 import { auth } from '$lib/auth';
-import { error, redirect } from '@sveltejs/kit';
+import { error, redirect, type Actions } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { prisma } from '$lib/server/prisma';
 
@@ -10,33 +10,39 @@ export const load = (async (event) => {
 
 	if (!session) redirect(307, '/login');
 
-	const data = await auth.api.setActiveOrganization({
+	await auth.api.setActiveOrganization({
 		body: {
 			organizationSlug: event.params.organizationSlug
 		},
 		headers: event.request.headers
 	});
-	console.log(data);
 
 	const member = await auth.api.getActiveMember({
 		headers: event.request.headers
 	});
 
-	if (isNaN(Number(event.params.reportId))) error(400, 'Hello World');
+	const idParam = event.params.reportId;
+	if (isNaN(Number(idParam))) error(400, 'Parámetro inválido: reportId');
 
 	const report = await prisma.report.findFirst({
 		where: {
-			organization: {
-				slug: event.params.organizationSlug
-			},
-			id: Number(event.params.reportId)
+			organization: { slug: event.params.organizationSlug },
+			id: Number(idParam)
+		},
+		include: {
+			assignee: {
+				include: {
+					user: {
+						select: { id: true, name: true, email: true, image: true, role: true }
+					}
+				}
+			}
 		}
 	});
 
-	if (member?.role !== 'owner' && report?.memberId !== member?.id) error(403, 'Forbidden');
-	if (!report) error(404, 'Not found');
+	if (!report) error(404, 'Orden no encontrada');
 
-	return {
-		report
-	};
+	if (member?.role !== 'owner' && report?.memberId !== member?.id) error(403, 'Forbidden');
+
+	return { report };
 }) satisfies PageServerLoad;
