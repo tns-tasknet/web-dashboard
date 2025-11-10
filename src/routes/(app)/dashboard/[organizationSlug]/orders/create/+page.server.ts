@@ -15,7 +15,7 @@ export const load: PageServerLoad = async (event) => {
 	const technicians = await prisma.member.findMany({
 		where: {
 			organization: { slug: event.params.organizationSlug },
-			role: 'user'
+			role: 'member'
 		},
 		include: {
 			user: { select: { id: true, name: true, email: true } }

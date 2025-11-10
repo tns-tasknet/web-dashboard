@@ -130,14 +130,16 @@ model Invitation {
 }
 
 model Report {
-  id        Int            @id @default(autoincrement())
-  title     String
-  content   String
-  response  String?
-  status    ReportProgress @default(PENDING)
-  longitude Decimal?
-  latitude  Decimal?
-  deviceId  String?
+  id         Int            @id @default(autoincrement())
+  title      String
+  content    String
+  response   String?
+  status     ReportProgress @default(PENDING)
+  longitude  Decimal?
+  latitude   Decimal?
+  deviceId   String?
+  activities String[]
+  materials  String[]
 
   assignee Member? @relation(fields: [memberId], references: [id])
   memberId String?

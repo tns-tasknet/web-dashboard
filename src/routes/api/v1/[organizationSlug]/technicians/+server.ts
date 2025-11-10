@@ -30,7 +30,7 @@ export const GET: RequestHandler = async (event) => {
 	// Filtro por técnicos
 	const where: Prisma.MemberWhereInput = {
 		organization: { slug: event.params.organizationSlug },
-		role: 'user',
+		role: 'member',
 		...(q
 			? {
 					user: {

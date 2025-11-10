@@ -50,7 +50,7 @@
 								class="btn avatar btn-circle btn-ghost"
 								aria-label="Abrir menú de perfil"
 							>
-								<div class="w-10 rounded-full">
+								<div class="h-10 w-10 rounded-full">
 									<img
 										src={$session.data.user.image ?? fallbackAvatar}
 										alt={$session.data.user.name ?? 'Usuario'}
