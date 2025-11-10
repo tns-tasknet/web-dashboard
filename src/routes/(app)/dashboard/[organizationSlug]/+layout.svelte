@@ -1,19 +1,38 @@
 <script lang="ts">
-	import favicon from '$lib/assets/favicon.svg';
+	import icon from '$lib/assets/icon-tasknet.jpg';
+	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { Bell, ClipboardCheck, ClipboardList, LayoutDashboard, UserPen } from 'lucide-svelte';
+	import { authClient } from '$lib/client';
 
 	let { data, children } = $props();
+
+	const session = authClient.useSession();
+	const fallbackAvatar = 'https://img.daisyui.com/images/profile/demo/yellingcat@192.webp';
+	const fallbackLogo = 'https://img.daisyui.com/images/profile/demo/yellingcat@192.webp';
+
+	const org = $derived(data.organization);
+	const orgSlug = $derived(page.params.organizationSlug);
+	const orgName = $derived(org?.name ?? '—');
+	const orgLogo = $derived(
+		org?.logo && typeof org.logo === 'string' && org.logo.trim() !== ''
+			? org.logo
+			: fallbackLogo
+	);
+
+	async function handleSignOut() {
+		await authClient.signOut();
+		goto('/login');
+	}
 </script>
 
 <svelte:head>
-	<link rel="icon" href={favicon} />
+	<link rel="icon" href={icon} />
 </svelte:head>
 
 <div class="drawer lg:drawer-open">
 	<input id="my-drawer-3" type="checkbox" class="drawer-toggle" />
 	<div class="drawer-content flex flex-1 flex-col">
-		<!-- Page content here -->
 		<label for="my-drawer-3" class="drawer-button btn lg:hidden"> Open drawer </label>
 
 		<div class="flex flex-1 flex-col bg-gray-200">
@@ -25,14 +44,37 @@
 						class="h-8 w-8 rounded-full p-1 transition-all hover:cursor-pointer hover:bg-gray-200"
 					/>
 
-					<div class="avatar hover:cursor-pointer">
-						<div class="h-10 w-10 rounded-full">
-							<img
-								src="https://img.daisyui.com/images/profile/demo/yellingcat@192.webp"
-								alt="cat"
-							/>
+					{#if $session.data?.user}
+						<div class="dropdown dropdown-end">
+							<button
+								class="btn avatar btn-circle btn-ghost"
+								aria-label="Abrir menú de perfil"
+							>
+								<div class="w-10 rounded-full">
+									<img
+										src={$session.data.user.image ?? fallbackAvatar}
+										alt={$session.data.user.name ?? 'Usuario'}
+										referrerpolicy="no-referrer"
+									/>
+								</div>
+							</button>
+
+							<ul
+								class="dropdown-content menu z-[100] mt-3 w-56 menu-sm rounded-box bg-base-100 p-2 shadow"
+								tabindex="-1"
+							>
+								<li class="menu-title px-2 py-1">
+									<span class="text-xs opacity-60">
+										{$session.data.user.name ?? $session.data.user.email}
+									</span>
+								</li>
+								<li><a href="/profile">Perfil</a></li>
+								<li><button disabled>Preferencias</button></li>
+								<li class="mt-1 mb-1"><div class="divider my-1"></div></li>
+								<li><button onclick={handleSignOut}>Cerrar sesión</button></li>
+							</ul>
 						</div>
-					</div>
+					{/if}
 				</div>
 			</div>
 
@@ -41,21 +83,21 @@
 			</div>
 		</div>
 	</div>
+
 	<div class="drawer-side">
 		<label for="my-drawer-3" aria-label="close sidebar" class="drawer-overlay"></label>
 		<ul class="menu min-h-full w-80 gap-y-1 bg-base-200 p-4">
-			<!-- Sidebar content here -->
-
 			<div class="mb-4 flex items-center justify-center gap-x-4 p-2 text-4xl font-extrabold">
-				TNS TaskNet
+				TaskNet
 			</div>
 
 			<div class="flex items-center gap-x-4 rounded-lg bg-gray-200 p-2">
-				<div class="rounded-lg bg-purple-600 p-2 font-extrabold text-white">ON</div>
-
+				<div class="w-10 rounded-full">
+					<img src={orgLogo} alt={orgName} referrerpolicy="no-referrer" />
+				</div>
 				<div class="flex flex-col">
-					<div class="font-bold">Organization Name</div>
-					<div class="font-light">Organization slug</div>
+					<div class="font-bold">{orgName}</div>
+					<div class="text-sm font-light opacity-70">{orgSlug}</div>
 				</div>
 			</div>
 
@@ -65,7 +107,7 @@
 					? 'border-l-4 bg-gray-300 font-bold'
 					: ''}"
 			>
-				<a href="/dashboard/{page.params.organizationSlug}">
+				<a href="/dashboard/{orgSlug}">
 					<LayoutDashboard class="h-6 w-6" /> Dashboard
 				</a>
 			</li>
@@ -76,8 +118,8 @@
 					? 'border-l-4 bg-gray-300 font-bold'
 					: ''}"
 			>
-				<a href="/dashboard/{page.params.organizationSlug}/orders">
-					<ClipboardList class="h-6 w-6" /> Orders
+				<a href="/dashboard/{orgSlug}/orders">
+					<ClipboardList class="h-6 w-6" /> Órdenes
 				</a>
 			</li>
 
@@ -87,7 +129,7 @@
 					? 'border-l-4 bg-gray-300 font-bold'
 					: ''}"
 			>
-				<a href="/dashboard/{page.params.organizationSlug}/reports">
+				<a href="/dashboard/{orgSlug}/reports">
 					<ClipboardCheck class="h-6 w-6" /> Reportes
 				</a>
 			</li>
@@ -98,8 +140,8 @@
 					? 'border-l-4 bg-gray-300 font-bold'
 					: ''}"
 			>
-				<a href="/dashboard/{page.params.organizationSlug}/technicians">
-					<UserPen class="h-6 w-6" /> Technicians
+				<a href="/dashboard/{orgSlug}/technicians">
+					<UserPen class="h-6 w-6" /> Técnicos
 				</a>
 			</li>
 		</ul>

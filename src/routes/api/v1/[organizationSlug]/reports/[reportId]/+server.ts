@@ -1,93 +1,102 @@
-import { auth } from '$lib/auth';
 import type { RequestHandler } from './$types';
+import { auth } from '$lib/auth';
 import { prisma } from '$lib/server/prisma';
 import { json } from '@sveltejs/kit';
+import type { Prisma } from '@prisma/client';
+import { ReportProgress } from '@prisma/client';
 
 export const GET: RequestHandler = async (event) => {
-	const session = await auth.api.getSession({
-		headers: event.request.headers
-	});
-
+	const session = await auth.api.getSession({ headers: event.request.headers });
 	if (!session) return new Response(null, { status: 401 });
 
-	const data = await auth.api.setActiveOrganization({
-		body: {
-			organizationSlug: event.params.organizationSlug
-		},
+	await auth.api.setActiveOrganization({
+		body: { organizationSlug: event.params.organizationSlug },
 		headers: event.request.headers
 	});
 
-	const member = await auth.api.getActiveMember({
-		headers: event.request.headers
+	const member = await auth.api.getActiveMember({ headers: event.request.headers });
+
+	// Parámetros
+	const usp = event.url.searchParams;
+	const limitParam = Number(usp.get('limit'));
+	const offsetParam = Number(usp.get('offset'));
+	const q = (usp.get('q') ?? '').trim();
+
+	// Ordenamiento
+	const sort = (usp.get('sort') ?? 'closedAt') as
+		| 'id'
+		| 'title'
+		| 'memberName'
+		| 'closedAt'
+		| 'createdAt';
+	const dir = (usp.get('dir') === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc';
+
+	const take =
+		Number.isFinite(limitParam) && limitParam > 0 && limitParam <= 100 ? limitParam : 30;
+	const skip = Number.isFinite(offsetParam) && offsetParam >= 0 ? offsetParam : 0;
+
+	// Filtro base
+	const where: Prisma.ReportWhereInput = {
+		organization: { is: { slug: event.params.organizationSlug } },
+		status: ReportProgress.COMPLETED,
+		...(member && member.role !== 'owner' && member.role !== 'admin'
+			? { assigneeId: member.id }
+			: {})
+	};
+
+	// Búsqueda simple
+	if (q) {
+		where.OR = [
+			{ title: { contains: q, mode: 'insensitive' } },
+			{ content: { contains: q, mode: 'insensitive' } }
+		];
+	}
+
+	// orderBy dinámico
+	let orderBy: Prisma.ReportOrderByWithRelationInput;
+	switch (sort) {
+		case 'id':
+			orderBy = { id: dir };
+			break;
+		case 'title':
+			orderBy = { title: dir };
+			break;
+		case 'memberName':
+			orderBy = {
+				assignee: { user: { name: dir } }
+			} as Prisma.ReportOrderByWithRelationInput;
+			break;
+		case 'createdAt':
+			orderBy = { createdAt: dir };
+			break;
+		case 'closedAt':
+		default:
+			orderBy = { completedAt: dir } as Prisma.ReportOrderByWithRelationInput;
+			break;
+	}
+
+	// Carga de datos
+	const [reports, total] = await Promise.all([
+		prisma.report.findMany({
+			where,
+			orderBy,
+			skip,
+			take,
+			include: {
+				assignee: {
+					include: {
+						user: { select: { id: true, name: true, email: true } }
+					}
+				}
+			}
+		}),
+		prisma.report.count({ where })
+	]);
+
+	return json({
+		reports,
+		total,
+		limit: take,
+		offset: skip
 	});
-
-	if (isNaN(Number(event.params.reportId))) return new Response(null, { status: 400 });
-
-	const report = await prisma.report.findFirst({
-		where: {
-			organization: {
-				slug: event.params.organizationSlug
-			},
-			id: Number(event.params.reportId)
-		}
-	});
-
-	if (member?.role !== 'owner' && report?.memberId !== member?.id)
-		return new Response(null, { status: 403 });
-	if (!report) return new Response(null, { status: 404 });
-
-	return json(report);
-};
-
-export const PATCH: RequestHandler = async (event) => {
-	const session = await auth.api.getSession({
-		headers: event.request.headers
-	});
-
-	if (!session) return new Response(null, { status: 401 });
-
-	const data = await auth.api.setActiveOrganization({
-		body: {
-			organizationSlug: event.params.organizationSlug
-		},
-		headers: event.request.headers
-	});
-
-	const member = await auth.api.getActiveMember({
-		headers: event.request.headers
-	});
-
-	if (isNaN(Number(event.params.reportId))) return new Response(null, { status: 400 });
-
-	const report = await prisma.report.findFirst({
-		where: {
-			organization: {
-				slug: event.params.organizationSlug
-			},
-			id: Number(event.params.reportId)
-		}
-	});
-
-	if (member?.role !== 'owner' && report?.memberId !== member?.id)
-		return new Response(null, { status: 403 });
-	if (report?.status === 'COMPLETED' && member?.role !== 'owner')
-		return new Response(null, { status: 403 });
-	if (!report) return new Response(null, { status: 404 });
-
-	const { response, status } = await event.request.json();
-
-	const updatedReport = await prisma.report.update({
-		where: {
-			organization: {
-				slug: event.params.organizationSlug
-			},
-			id: Number(event.params.reportId)
-		},
-		data: {
-			response,
-			status
-		}
-	});
-
-	return json(updatedReport);
 };

@@ -1,32 +1,69 @@
 <script lang="ts">
-	import { authClient } from '$lib/client';
 	import type { PageProps } from './$types';
+	import { page } from '$app/state';
 
-	let { data }: PageProps = $props();
+	let { data, form } = $props<{
+		data: PageProps['data'];
+		form?: {
+			message?: string;
+			values?: {
+				title?: string;
+				content?: string;
+				assigneeId?: string | null;
+			};
+		};
+	}>();
 </script>
 
-<h1 class="text-3xl">Create Report</h1>
+<h1 class="mb-4 text-2xl font-semibold">Crear orden</h1>
 
-<form method="POST">
-	<fieldset class="fieldset">
-		<legend class="fieldset-legend">Report title</legend>
-		<input type="text" placeholder="Type here" class="input" name="title" />
-	</fieldset>
+<form method="POST" class="max-w-3xl space-y-5">
+	{#if form?.message}
+		<div class="alert alert-warning">{form.message}</div>
+	{/if}
 
-	<fieldset class="fieldset">
-		<legend class="fieldset-legend">Report content</legend>
-		<input type="text" placeholder="Type here" class="input" name="content" />
-	</fieldset>
+	<div class="form-control">
+		<label class="label" for="title"><span class="label-text">Título</span></label>
+		<input
+			id="title"
+			name="title"
+			type="text"
+			class="input-bordered input w-full"
+			placeholder="Ingresa un título descriptivo"
+			value={form?.values?.title ?? ''}
+			required
+		/>
+	</div>
 
-	<select class="select select-primary" name="status">
-		<option disabled selected>Pick a status</option>
-		<option>PENDING</option>
-		<option>SCHEDULED</option>
-		<option>IN_PROGRESS</option>
-		<option>COMPLETED</option>
-	</select>
+	<div class="form-control">
+		<label class="label" for="content"><span class="label-text">Descripción</span></label>
+		<textarea
+			id="content"
+			name="content"
+			class="textarea-bordered textarea min-h-[12rem] w-full"
+			placeholder="Describe el trabajo a realizar, ubicación, materiales, observaciones…"
+			required>{form?.values?.content ?? ''}</textarea
+		>
+	</div>
 
-	<button type="submit" class="btn btn-primary">Create report</button>
+	<div class="form-control">
+		<label class="label" for="assigneeId"
+			><span class="label-text">Técnico asignado</span></label
+		>
+		<select id="assigneeId" name="assigneeId" class="select-bordered select w-full">
+			<option value="" selected={!form?.values?.assigneeId}>— Sin asignar —</option>
+			{#each data.technicians as m}
+				<option value={m.id} selected={form?.values?.assigneeId === m.id}>
+					{m.user?.name ?? m.user?.email ?? 'Sin nombre'}
+				</option>
+			{/each}
+		</select>
+	</div>
+
+	<div class="flex items-center justify-end gap-2">
+		<a class="btn btn-ghost" href={`/dashboard/${page.params.organizationSlug}/orders`}
+			>Cancelar</a
+		>
+		<button type="submit" class="btn btn-primary">Crear orden</button>
+	</div>
 </form>
-
-<!-- TODO: A lot of stuff -->
