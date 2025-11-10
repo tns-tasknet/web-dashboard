@@ -140,6 +140,8 @@ model Report {
   deviceId   String?
   activities String[]
   materials  String[]
+  startedAt  DateTime?
+  closedAt   DateTime?
 
   assignee Member? @relation(fields: [memberId], references: [id])
   memberId String?
