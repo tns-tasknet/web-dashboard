@@ -73,7 +73,28 @@
 			form.assigneeId !== initial.assigneeId
 	);
 
+	// Opciones traídas desde el load (API /technicians)
 	const technicianOptions = $derived<Option[]>(data.technicianOptions ?? []);
+
+	// Datos derivados para asegurar que el técnico actual se muestre aunque no venga en la lista
+	const currentAssigneeId = $derived(report?.assignee?.id ?? '');
+	const currentAssigneeOpt = $derived<Option | null>(
+	currentAssigneeId &&
+	!technicianOptions.some(o => o.value === currentAssigneeId)
+		? {
+			value: currentAssigneeId,
+			label:
+			`${report?.assignee?.user?.name ||
+				report?.assignee?.user?.email ||
+				currentAssigneeId} (actual)`
+		}
+		: null
+	);
+
+	const techOptionsForRender: Option[] = $derived([
+		...(currentAssigneeOpt ? [currentAssigneeOpt] : []),
+		...technicianOptions
+	]);
 
 	const createdAtText = $derived(
 		report?.createdAt
@@ -247,23 +268,30 @@
 					</div>
 
 					<div class="form-control">
-						<label class="label" for="assigneeId"
-							><span class="label-text">Técnico asignado</span></label
-						>
+						<label class="label" for="assigneeId">
+							<span class="label-text">Técnico asignado</span>
+						</label>
+
 						<select
 							id="assigneeId"
-							class="select-bordered select w-full"
+							class="select select-bordered w-full"
 							name="assigneeId"
 							bind:value={form.assigneeId}
 							disabled={isCompleted}
+							aria-label="Seleccionar técnico asignado"
 						>
-							<option value="" disabled hidden>
-								{assignedName !== '—' ? assignedName : 'Selecciona técnico'}
-							</option>
+							{#if !report?.assignee?.id}
+							<option value="" disabled selected hidden></option>
+							{/if}
+
 							{#each technicianOptions as opt}
-								<option value={opt.value}>{opt.label}</option>
+							<option value={opt.value}>{opt.label}</option>
 							{/each}
 						</select>
+
+						{#if !report?.assignee?.id && form.assigneeId === ''}
+							<span class="mt-1 text-xs opacity-60">Sin técnico asignado</span>
+						{/if}
 					</div>
 
 					<div class="divider my-4"></div>
@@ -286,6 +314,7 @@
 			</div>
 		</div>
 	{/if}
+
 
 	<!-- Historial -->
 	{#if tab === 'history'}

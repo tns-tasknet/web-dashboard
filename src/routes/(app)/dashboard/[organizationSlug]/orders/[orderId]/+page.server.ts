@@ -1,7 +1,6 @@
 import { auth } from '$lib/auth';
 import { error, redirect, type Actions } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { prisma } from '$lib/server/prisma';
 import type { ReportProgress } from '@prisma/client';
 
 type TechnicianOption = { value: string; label: string };
@@ -39,22 +38,6 @@ function parseOrderId(event: { params: Record<string, string | undefined> }) {
 	return id;
 }
 
-function mustBeOwnerAdminOrAuthor(
-	member: { role?: string; id?: string } | null,
-	report: { memberId: string | null }
-) {
-	const role = member?.role;
-	const isOwnerOrAdmin = role === 'owner' || role === 'admin';
-	const isAuthor = report.memberId === member?.id;
-	if (!isOwnerOrAdmin && !isAuthor) throw error(403, 'Forbidden');
-}
-
-function nextValidStatus(current: ReportProgress, incomingRaw: string): ReportProgress {
-	const candidate = (incomingRaw || current) as ReportProgress;
-	if (!ALLOWED_STATUS.has(candidate)) throw error(400, 'Estado no válido.');
-	return candidate;
-}
-
 async function fetchTechnicianOptions(event: EventLike, org: string) {
 	const usp = new URLSearchParams({
 		paginated: 'true',
@@ -84,24 +67,17 @@ async function fetchTechnicianOptions(event: EventLike, org: string) {
 }
 
 export const load = (async (event) => {
-	const { organizationSlug, member } = await ensureSessionAndOrg(event);
+	const { organizationSlug } = await ensureSessionAndOrg(event);
 	const id = parseOrderId(event);
 
-	const report = await prisma.report.findFirst({
-		where: { organization: { slug: organizationSlug }, id },
-		include: {
-			assignee: {
-				include: {
-					user: { select: { id: true, name: true, email: true, image: true, role: true } }
-				}
-			}
-		}
-	});
+	const res = await event.fetch(`/api/v1/${organizationSlug}/orders/${id}`);
+	if (res.status === 404) throw error(404, 'Orden no encontrada');
+	if (!res.ok) throw error(res.status, 'No fue posible cargar la orden');
 
-	if (!report) throw error(404, 'Orden no encontrada');
-	mustBeOwnerAdminOrAuthor(member, report);
+	const { report } = await res.json();
 
 	const technicianOptions = await fetchTechnicianOptions(event, organizationSlug);
+
 	return { report, technicianOptions };
 }) satisfies PageServerLoad;
 
@@ -117,33 +93,43 @@ export const actions: Actions = {
 		const title = (fd.get('title') ?? '').toString().trim();
 		const content = (fd.get('content') ?? '').toString().trim();
 		const statusRaw = (fd.get('status') ?? '').toString().trim();
-		const assigneeId = (fd.get('assigneeId') ?? '').toString().trim();
+		const assigneeIdRaw = (fd.get('assigneeId') ?? '').toString().trim();
 
 		if (!title) throw error(400, 'El título es requerido.');
 
-		const current = await prisma.report.findFirst({
-			where: { id, organization: { slug: organizationSlug } }
-		});
-		if (!current) throw error(404, 'Orden no encontrada');
 
-		mustBeOwnerAdminOrAuthor(member, current);
+		const payload: {
+			title?: string;
+			content?: string;
+			status?: string;
+			assigneeId?: string | null;
+		} = {};
 
-		const isOwnerOrAdmin = member?.role === 'owner' || member?.role === 'admin';
-		if (current.status === 'COMPLETED' && !isOwnerOrAdmin) {
-			throw error(400, 'La orden completada no admite cambios.');
+		payload.title = title;   
+		payload.content = content;        
+		if (statusRaw) payload.status = statusRaw;
+
+		if (assigneeIdRaw === '__UNASSIGN__') {
+		payload.assigneeId = null;
+		} else if (assigneeIdRaw !== '') {
+		payload.assigneeId = assigneeIdRaw;
 		}
 
-		const nextStatus = nextValidStatus(current.status as ReportProgress, statusRaw);
-
-		await prisma.report.update({
-			where: { id },
-			data: {
-				title,
-				content,
-				status: nextStatus,
-				memberId: assigneeId || null
-			}
+		const resPatch = await event.fetch(`/api/v1/${organizationSlug}/orders/${id}`, {
+		method: 'PATCH',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify(payload)
 		});
+
+		if (resPatch.status === 404) throw error(404, 'Orden no encontrada');
+		if (!resPatch.ok) {
+		let msg = 'No fue posible actualizar la orden';
+		try {
+			const j = await resPatch.json();
+			if (j?.error) msg = j.error;
+		} catch {}
+		throw error(resPatch.status, msg);
+		}
 
 		throw redirect(303, event.url.pathname);
 	}
