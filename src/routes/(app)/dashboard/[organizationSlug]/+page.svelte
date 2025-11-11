@@ -1,195 +1,171 @@
 <script lang="ts">
-	import type { PageProps } from './$types';
+  import type { PageProps } from './$types';
+  let { data }: PageProps = $props();
 
-	let { data }: PageProps = $props();
+  import type { ApexOptions } from 'apexcharts';
+  import { Chart } from '@flowbite-svelte-plugins/chart';
+  import { Datepicker, P } from 'flowbite-svelte';
 
-	import type { ApexOptions } from 'apexcharts';
-	import { Chart } from '@flowbite-svelte-plugins/chart';
+  // ---------- Fecha (control demo) ----------
+  let dateRange: { from: Date; to: Date } = $state({
+    from: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+    to: new Date()
+  });
 
-	let options: ApexOptions = {
-		series: [
-			{
-				name: 'Ordenes Abiertas',
-				data: [
-					[new Date('2025-10-01'), 2],
-					[new Date('2025-10-02'), 10],
-					[new Date('2025-10-03'), 5],
-					[new Date('2025-10-04'), 20],
-					[new Date('2025-10-05'), 0],
-					[new Date('2025-10-06'), 3]
-				]
-			}
-		],
-		chart: {
-			type: 'area',
-			stacked: false,
-			height: 350,
-			zoom: {
-				type: 'x',
-				enabled: true,
-				autoScaleYaxis: true
-			},
-			toolbar: {
-				autoSelected: 'zoom'
-			}
-		},
-		dataLabels: {
-			enabled: false
-		},
-		markers: {
-			size: 0
-		},
-		fill: {
-			type: 'gradient',
-			gradient: {
-				shadeIntensity: 1,
-				inverseColors: false,
-				opacityFrom: 0.5,
-				opacityTo: 0,
-				stops: [0, 90, 100]
-			}
-		},
-		yaxis: {
-			labels: {
-				formatter: function (val: any) {
-					return (val / 1).toFixed(0);
-				}
-			},
-			title: {
-				text: 'N° de ordenes'
-			}
-		},
-		xaxis: {
-			type: 'datetime'
-		},
-		tooltip: {
-			shared: false,
-			y: {
-				formatter: function (val: any) {
-					return (val / 1).toFixed(0);
-				}
-			}
-		}
-	};
+  // ---------- Helpers MOCK (solo demo visual) ----------
+  function daysBetween(from: Date, to: Date) {
+    const start = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+    const end = new Date(to.getFullYear(), to.getMonth(), to.getDate());
+    const out: Date[] = [];
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      out.push(new Date(d));
+    }
+    return out;
+  }
 
-	const options2: ApexOptions = {
-		series: [52.8, 26.8, 20.4],
-		colors: ['#1C64F2', '#16BDCA', '#9061F9'],
-		chart: {
-			height: 420,
-			width: '100%',
-			type: 'pie'
-		},
-		stroke: {
-			colors: ['white']
-		},
-		plotOptions: {
-			pie: {
-				dataLabels: {
-					offset: -25
-				}
-			}
-		},
-		labels: ['Direct', 'Organic search', 'Referrals'],
-		dataLabels: {
-			enabled: true,
-			style: {
-				fontFamily: 'Inter, sans-serif'
-			}
-		},
-		legend: {
-			position: 'bottom',
-			fontFamily: 'Inter, sans-serif'
-		},
-		yaxis: {
-			labels: {
-				formatter: function (value) {
-					return value + '%';
-				}
-			}
-		},
-		xaxis: {
-			labels: {
-				formatter: function (value) {
-					return value + '%';
-				}
-			},
-			axisTicks: {
-				show: false
-			},
-			axisBorder: {
-				show: false
-			}
-		}
-	};
+  // Serie determinística “verosímil” de abiertas por día (no aleatoria)
+  // Regla simple: pico a mitad de rango, bajas el fin de semana, etc.
+  function mockOpenPerDay(from: Date, to: Date) {
+    const ds = daysBetween(from, to);
+    const mid = Math.floor(ds.length / 2);
+    return ds.map((d, i) => {
+      const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+      const base = 5 + Math.round(8 * Math.exp(-Math.pow((i - mid) / (ds.length / 5 || 1), 2)));
+      const adj = isWeekend ? Math.max(0, base - 3) : base;
+      return { x: d.getTime(), y: adj };
+    });
+  }
 
-	import { Datepicker, P } from 'flowbite-svelte';
+  // Distribución por estado (suma ~100) para el rango
+  function mockStatusSplit(series: { x: number; y: number }[]) {
+    const totalOpen = series.reduce((a, b) => a + b.y, 0);
+    if (totalOpen === 0) return { pending: 0, inProgress: 0, onHold: 0 };
+    // Proporciones “creíbles”
+    const pending = Math.min(60, Math.round((series[series.length - 1]?.y ?? 10) * 3)); // depende del último día
+    const inProgress = Math.round((totalOpen / series.length) * 2);
+    const onHold = Math.max(5, 100 - pending - inProgress);
+    // Normalización rápida a 100
+    const sum = pending + inProgress + onHold;
+    return {
+      pending: Math.round((pending / sum) * 100),
+      inProgress: Math.round((inProgress / sum) * 100),
+      onHold: 100 - Math.round((pending / sum) * 100) - Math.round((inProgress / sum) * 100)
+    };
+  }
 
-	let dateRange: { from: Date; to: Date } = $state({
-		from: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-		to: new Date()
-	});
+  // ---------- Series & KPIs derivados del rango ----------
+  const openSeries = $derived(mockOpenPerDay(dateRange.from, dateRange.to));
+  const kpi_created = $derived(openSeries.length > 0 ? Math.max(18, Math.round(openSeries.reduce((a, b) => a + (b.y > 0 ? 1 : 0), 0) * 1.2)) : 0);
+  const kpi_closed = $derived(Math.max(10, Math.round(kpi_created * 0.7)));
+  const kpi_openToday = $derived(openSeries[openSeries.length - 1]?.y ?? 0);
+  const kpi_sla = $derived( // % “en ventana”
+    Math.min(100, Math.max(84, 100 - Math.round((kpi_openToday * 2) % 15)))
+  );
+
+  const split = $derived(mockStatusSplit(openSeries));
+
+  // ---------- Chart 1: Área de abiertas por día ----------
+  const optionsArea: ApexOptions = $derived({
+    series: [
+      { name: 'Órdenes abiertas', data: openSeries } // {x: timestamp, y: number}
+    ],
+    chart: {
+      type: 'area',
+      height: 320,
+      stacked: false,
+      zoom: { type: 'x', enabled: true, autoScaleYaxis: true },
+      toolbar: { autoSelected: 'zoom' }
+    },
+    dataLabels: { enabled: false },
+    markers: { size: 0 },
+    fill: {
+      type: 'gradient',
+      gradient: { shadeIntensity: 1, inverseColors: false, opacityFrom: 0.45, opacityTo: 0, stops: [0, 90, 100] }
+    },
+    yaxis: {
+      title: { text: 'N° de órdenes' },
+      labels: { formatter: (val: number) => `${Math.round(val)}` }
+    },
+    xaxis: { type: 'datetime' },
+    tooltip: {
+      shared: false,
+      x: { format: 'dd MMM' },
+      y: { formatter: (val: number) => `${Math.round(val)}` }
+    }
+  });
+
+  // ---------- Chart 2: Pie por estado ----------
+  const optionsPie: ApexOptions = $derived({
+    series: [split.pending, split.inProgress, split.onHold],
+    colors: ['#f97316', '#1C64F2', '#9061F9'],
+    chart: { type: 'pie', height: 320, width: '100%' },
+    stroke: { colors: ['white'] },
+    labels: ['Pendiente', 'En progreso', 'En espera'],
+    dataLabels: {
+      enabled: true,
+      formatter: (val: number) => `${val.toFixed(0)}%`,
+      style: { fontFamily: 'Inter, sans-serif' }
+    },
+    legend: { position: 'bottom', fontFamily: 'Inter, sans-serif' }
+  });
 </script>
 
-<div class="flex flex-1 items-center pr-6">
-	<div class="flex flex-col">
-		<Datepicker
-			firstDayOfWeek={1}
-			range
-			bind:rangeFrom={dateRange.from}
-			bind:rangeTo={dateRange.to}
-			color="pink"
-		/>
-		<P class="mt-4">
-			Selected range:
-			{dateRange.from ? dateRange.from.toLocaleDateString() : 'None'} -
-			{dateRange.to ? dateRange.to.toLocaleDateString() : 'None'}
-		</P>
-	</div>
-
-	<!--<div class="flex flex-1 justify-end"><button class="btn btn-primary">Refrescar</button></div>-->
+<!-- Filtro de rango -->
+<div class="flex flex-1 items-center justify-between gap-4">
+  <div class="flex flex-col">
+    <Datepicker
+      firstDayOfWeek={1}
+      range
+      bind:rangeFrom={dateRange.from}
+      bind:rangeTo={dateRange.to}
+      color="pink"
+    />
+    <P class="mt-3 text-sm opacity-70">
+      Rango seleccionado:
+      {dateRange.from ? dateRange.from.toLocaleDateString() : '—'} – {dateRange.to ? dateRange.to.toLocaleDateString() : '—'}
+    </P>
+  </div>
+  <!-- Botón "refrescar" opcional para la demo
+  <button class="btn btn-primary">Refrescar</button>
+  -->
 </div>
 
-<div class="flex flex-1 gap-x-2 pt-6">
-	<div class="card w-96 bg-base-100 card-border">
-		<div class="card-body">
-			<h2 class="card-title">Ordenes creadas</h2>
-			<p class="text-2xl font-extrabold">32</p>
-		</div>
-	</div>
+<!-- KPIs -->
+<div class="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+  <div class="card card-border bg-base-100">
+    <div class="card-body">
+      <h2 class="card-title">Órdenes creadas</h2>
+      <p class="text-3xl font-extrabold">{kpi_created}</p>
+      <p class="text-xs opacity-60">En el rango seleccionado</p>
+    </div>
+  </div>
 
-	<div class="card w-96 bg-base-100 card-border">
-		<div class="card-body">
-			<h2 class="card-title">Reportes cerrados</h2>
-			<p class="text-2xl font-extrabold">32</p>
-		</div>
-	</div>
+  <div class="card card-border bg-base-100">
+    <div class="card-body">
+      <h2 class="card-title">Reportes cerrados</h2>
+      <p class="text-3xl font-extrabold">{kpi_closed}</p>
+      <p class="text-xs opacity-60">Marcadas como “COMPLETED”</p>
+    </div>
+  </div>
 
-	<div class="card w-96 bg-base-100 card-border">
-		<div class="card-body">
-			<h2 class="card-title">Stats</h2>
-			<p class="text-2xl font-extrabold">32</p>
-		</div>
-	</div>
-
-	<div class="card w-96 bg-base-100 card-border">
-		<div class="card-body">
-			<h2 class="card-title">Stats</h2>
-			<p class="text-2xl font-extrabold">32</p>
-		</div>
-	</div>
+  <div class="card card-border bg-base-100">
+    <div class="card-body">
+      <h2 class="card-title">Abiertas hoy</h2>
+      <p class="text-3xl font-extrabold">{kpi_openToday}</p>
+      <p class="text-xs opacity-60">Órdenes activas al cierre de hoy</p>
+    </div>
+  </div>
 </div>
 
-<div class="flex flex-1 gap-x-6 pt-6">
-	<div class="flex flex-1 flex-col rounded-xl bg-base-200 p-4">
-		<div class="border-b border-b-gray-400 pb-1 text-3xl font-bold">
-			Ordenes abiertas por dia
-		</div>
-		<Chart class="flex flex-1" {options} />
-	</div>
+<!-- Gráficos -->
+<div class="mt-6 grid gap-6 xl:grid-cols-2">
+  <div class="flex flex-col rounded-xl bg-base-200 p-4">
+    <div class="border-b border-b-base-300 pb-2 text-xl font-bold">Órdenes abiertas por día</div>
+    <Chart class="mt-2 flex-1" options={optionsArea} />
+  </div>
 
-	<div class="flex flex-1 flex-col rounded-xl bg-base-200 p-4">
-		<div class="border-b border-b-gray-400 pb-1 text-3xl font-bold">Tipo de Reportes</div>
-		<Chart class="flex flex-1" options={options2} />
-	</div>
+  <div class="flex flex-col rounded-xl bg-base-200 p-4">
+    <div class="border-b border-b-base-300 pb-2 text-xl font-bold">Órdenes por estado</div>
+    <Chart class="mt-2 flex-1" options={optionsPie} />
+  </div>
 </div>
