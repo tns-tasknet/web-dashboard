@@ -2,7 +2,7 @@ import type { RequestHandler } from './$types';
 import { auth } from '$lib/auth';
 import { prisma } from '$lib/server/prisma';
 import { json, error } from '@sveltejs/kit';
-import type { ReportProgress } from '@prisma/client';
+import { ReportProgress } from '@prisma/client';
 
 const ALLOWED_STATUS = new Set<ReportProgress>([
   'PENDING',
@@ -49,7 +49,7 @@ export const GET: RequestHandler = async (event) => {
 	const id = parseReportId(event);
 
 	const report = await prisma.report.findFirst({
-		where: { id, organization: { slug: organizationSlug } },
+		where: { id, organization: { slug: organizationSlug }, status: ReportProgress.COMPLETED },
 			include: {
 				assignee: {
 					include: {
