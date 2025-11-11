@@ -97,7 +97,6 @@ export const actions: Actions = {
 
 		if (!title) throw error(400, 'El título es requerido.');
 
-
 		const payload: {
 			title?: string;
 			content?: string;
@@ -105,30 +104,30 @@ export const actions: Actions = {
 			assigneeId?: string | null;
 		} = {};
 
-		payload.title = title;   
-		payload.content = content;        
+		payload.title = title;
+		payload.content = content;
 		if (statusRaw) payload.status = statusRaw;
 
 		if (assigneeIdRaw === '__UNASSIGN__') {
-		payload.assigneeId = null;
+			payload.assigneeId = null;
 		} else if (assigneeIdRaw !== '') {
-		payload.assigneeId = assigneeIdRaw;
+			payload.assigneeId = assigneeIdRaw;
 		}
 
 		const resPatch = await event.fetch(`/api/v1/${organizationSlug}/orders/${id}`, {
-		method: 'PATCH',
-		headers: { 'content-type': 'application/json' },
-		body: JSON.stringify(payload)
+			method: 'PATCH',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify(payload)
 		});
 
 		if (resPatch.status === 404) throw error(404, 'Orden no encontrada');
 		if (!resPatch.ok) {
-		let msg = 'No fue posible actualizar la orden';
-		try {
-			const j = await resPatch.json();
-			if (j?.error) msg = j.error;
-		} catch {}
-		throw error(resPatch.status, msg);
+			let msg = 'No fue posible actualizar la orden';
+			try {
+				const j = await resPatch.json();
+				if (j?.error) msg = j.error;
+			} catch {}
+			throw error(resPatch.status, msg);
 		}
 
 		throw redirect(303, event.url.pathname);

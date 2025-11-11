@@ -87,20 +87,20 @@
 	function describe(e: HistoryEvent) {
 		if (e.description) return e.description;
 		switch (e.type) {
-		case 'CREATED':
-			return `Orden creada${e.actor ? ` por ${e.actor}` : ''}.`;
-		case 'ASSIGNED':
-			return `Asignada a ${e.payload?.to ?? '—'}${e.actor ? ` por ${e.actor}` : ''}.`;
-		case 'REASSIGNED':
-			return `Reasignada a ${e.payload?.to ?? '—'}${e.actor ? ` por ${e.actor}` : ''}.`;
-		case 'STATE_CHANGED':
-			return `Estado: ${e.payload?.from ?? '—'} → ${e.payload?.to ?? '—'}${e.actor ? ` (por ${e.actor})` : ''}.`;
-		case 'NOTE':
-			return `Nota${e.actor ? ` de ${e.actor}` : ''}.`;
-		case 'CLOSED':
-			return `Orden cerrada${e.actor ? ` por ${e.actor}` : ''}.`;
-		default:
-			return '';
+			case 'CREATED':
+				return `Orden creada${e.actor ? ` por ${e.actor}` : ''}.`;
+			case 'ASSIGNED':
+				return `Asignada a ${e.payload?.to ?? '—'}${e.actor ? ` por ${e.actor}` : ''}.`;
+			case 'REASSIGNED':
+				return `Reasignada a ${e.payload?.to ?? '—'}${e.actor ? ` por ${e.actor}` : ''}.`;
+			case 'STATE_CHANGED':
+				return `Estado: ${e.payload?.from ?? '—'} → ${e.payload?.to ?? '—'}${e.actor ? ` (por ${e.actor})` : ''}.`;
+			case 'NOTE':
+				return `Nota${e.actor ? ` de ${e.actor}` : ''}.`;
+			case 'CLOSED':
+				return `Orden cerrada${e.actor ? ` por ${e.actor}` : ''}.`;
+			default:
+				return '';
 		}
 	}
 
@@ -112,10 +112,15 @@
 	const updatedAtText = $derived(formatDate(report?.updatedAt));
 	const durationText = $derived(
 		report?.createdAt && report?.updatedAt
-		? formatDuration(new Date(report.updatedAt as any).getTime() - new Date(report.createdAt as any).getTime())
-		: '—'
+			? formatDuration(
+					new Date(report.updatedAt as any).getTime() -
+						new Date(report.createdAt as any).getTime()
+				)
+			: '—'
 	);
-	const assignedName = $derived(report?.assignee?.user?.name ?? report?.assignee?.user?.email ?? '—');
+	const assignedName = $derived(
+		report?.assignee?.user?.name ?? report?.assignee?.user?.email ?? '—'
+	);
 
 	let tab = $state<TabKey>('details');
 
@@ -134,11 +139,25 @@
 	// Historial (placeholder)
 	const events: HistoryEvent[] = [
 		{ id: 1, timestamp: '2025-10-24T14:31:00Z', type: 'CREATED', actor: 'Coordinador' },
-		{ id: 2, timestamp: '2025-10-24T16:05:00Z', type: 'ASSIGNED', actor: 'Coordinador', payload: { to: 'Juan Pérez' } },
-		{ id: 3, timestamp: '2025-10-24T18:12:00Z', type: 'STATE_CHANGED', actor: 'Juan Pérez', payload: { from: 'IN_PROGRESS', to: 'COMPLETED' } },
+		{
+			id: 2,
+			timestamp: '2025-10-24T16:05:00Z',
+			type: 'ASSIGNED',
+			actor: 'Coordinador',
+			payload: { to: 'Juan Pérez' }
+		},
+		{
+			id: 3,
+			timestamp: '2025-10-24T18:12:00Z',
+			type: 'STATE_CHANGED',
+			actor: 'Juan Pérez',
+			payload: { from: 'IN_PROGRESS', to: 'COMPLETED' }
+		},
 		{ id: 4, timestamp: '2025-10-25T18:12:00Z', type: 'CLOSED', actor: 'Coordinador' }
 	];
-	const ordered = [...events].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+	const ordered = [...events].sort(
+		(a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+	);
 
 	// --- Rectificaciones (reales: vienen del server load)
 	let rectifications = $state<Correction[]>(data.corrections ?? []);
@@ -152,36 +171,35 @@
 		errorMsg = null;
 		const content = draft.trim();
 		if (!content) {
-		errorMsg = 'Escribe el contenido de la rectificación.';
-		return;
+			errorMsg = 'Escribe el contenido de la rectificación.';
+			return;
 		}
 		if (!report?.id || !slug) {
-		errorMsg = 'No se encontró el contexto del reporte.';
-		return;
+			errorMsg = 'No se encontró el contexto del reporte.';
+			return;
 		}
 		creating = true;
 		try {
-		const res = await fetch(`/api/v1/${encodeURIComponent(slug)}/corrections`, {
-			method: 'POST',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify({ reportId: report.id, content })
-		});
-		if (!res.ok) {
-			errorMsg = await res.text();
-			return;
-		}
-		const { correction } = (await res.json()) as { correction: Correction };
-		// Insertar al inicio (orden desc por fecha)
-		rectifications = [...rectifications, correction];
-		draft = '';
+			const res = await fetch(`/api/v1/${encodeURIComponent(slug)}/corrections`, {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ reportId: report.id, content })
+			});
+			if (!res.ok) {
+				errorMsg = await res.text();
+				return;
+			}
+			const { correction } = (await res.json()) as { correction: Correction };
+			// Insertar al inicio (orden desc por fecha)
+			rectifications = [...rectifications, correction];
+			draft = '';
 		} catch (e: any) {
-		errorMsg = e?.message ?? 'Error desconocido';
+			errorMsg = e?.message ?? 'Error desconocido';
 		} finally {
-		creating = false;
+			creating = false;
 		}
 	}
 </script>
-
 
 <div class="mx-auto max-w-5xl space-y-6 py-6">
 	<div class="card border bg-base-100">
@@ -304,32 +322,32 @@
 					<p class="leading-relaxed">{report?.content}</p>
 				</div>
 
-				<div class="divider"></div>				
+				<div class="divider"></div>
 
 				<div class="mt-2 grid grid-cols-1 gap-6 md:grid-cols-2">
 					<div>
 						<div class="mb-1 text-sm opacity-60">Actividades realizadas</div>
 						{#if report?.activities?.length}
-						<ul class="ml-5 list-disc space-y-1 text-sm">
-							{#each report.activities as activity}
-							<li>{activity}</li>
-							{/each}
-						</ul>
+							<ul class="ml-5 list-disc space-y-1 text-sm">
+								{#each report.activities as activity}
+									<li>{activity}</li>
+								{/each}
+							</ul>
 						{:else}
-						<div class="text-sm opacity-60">No registradas.</div>
+							<div class="text-sm opacity-60">No registradas.</div>
 						{/if}
 					</div>
 
 					<div>
 						<div class="mb-1 text-sm opacity-60">Materiales usados</div>
 						{#if report?.materials?.length}
-						<ul class="ml-5 list-disc space-y-1 text-sm">
-							{#each report.materials as material}
-							<li>{material}</li>
-							{/each}
-						</ul>
+							<ul class="ml-5 list-disc space-y-1 text-sm">
+								{#each report.materials as material}
+									<li>{material}</li>
+								{/each}
+							</ul>
 						{:else}
-						<div class="text-sm opacity-60">No registrados.</div>
+							<div class="text-sm opacity-60">No registrados.</div>
 						{/if}
 					</div>
 				</div>
@@ -432,53 +450,54 @@
 
 	<!-- Rectificaciones -->
 	{#if tab === 'rectifications'}
-	<div class="card mt-4 border bg-base-100">
-		<div class="card-body space-y-4">
-			<h2 class="card-title">Rectificaciones</h2>
+		<div class="card mt-4 border bg-base-100">
+			<div class="card-body space-y-4">
+				<h2 class="card-title">Rectificaciones</h2>
 
-			<!-- Lista de rectificaciones -->
-			<div class="space-y-3">
-				{#if rectifications.length === 0}
-				<div class="text-sm opacity-60">Sin rectificaciones aún.</div>
-				{:else}
-				{#each rectifications as r (r.id)}
-					<div class="rounded border p-3">
-					<div class="mb-1 text-sm opacity-60">
-						{fmt(r.createdAt)} — por {r.author.role} - {r.author.name}
-					</div>
-					<p class="text-sm whitespace-pre-wrap">{r.content}</p>
-					</div>
-				{/each}
-				{/if}
-			</div>
-
-			<!-- Formulario nueva rectificación -->
-			<div class="rounded border p-4">
-				<div class="form-control">
-				<textarea
-					id="rectification"
-					class="textarea textarea-bordered w-full min-h-[8rem]"
-					placeholder="Nueva rectificación"
-					bind:value={draft}
-				></textarea>
+				<!-- Lista de rectificaciones -->
+				<div class="space-y-3">
+					{#if rectifications.length === 0}
+						<div class="text-sm opacity-60">Sin rectificaciones aún.</div>
+					{:else}
+						{#each rectifications as r (r.id)}
+							<div class="rounded border p-3">
+								<div class="mb-1 text-sm opacity-60">
+									{fmt(r.createdAt)} — por {r.author.role} - {r.author.name}
+								</div>
+								<p class="text-sm whitespace-pre-wrap">{r.content}</p>
+							</div>
+						{/each}
+					{/if}
 				</div>
-				<div class="mt-3 flex items-center gap-2">
-				<button class="btn btn-primary btn-sm" type="button" disabled={creating || !draft.trim()} onclick={submitCorrection}>
-					{#if creating}<span class="loading loading-spinner loading-xs"></span>{/if}
-					<span>Agregar</span>
-				</button>
-				{#if errorMsg}
-					<span class="text-error text-sm">{errorMsg}</span>
-				{/if}
+
+				<!-- Formulario nueva rectificación -->
+				<div class="rounded border p-4">
+					<div class="form-control">
+						<textarea
+							id="rectification"
+							class="textarea-bordered textarea min-h-[8rem] w-full"
+							placeholder="Nueva rectificación"
+							bind:value={draft}
+						></textarea>
+					</div>
+					<div class="mt-3 flex items-center gap-2">
+						<button
+							class="btn btn-sm btn-primary"
+							type="button"
+							disabled={creating || !draft.trim()}
+							onclick={submitCorrection}
+						>
+							{#if creating}<span class="loading loading-xs loading-spinner"
+								></span>{/if}
+							<span>Agregar</span>
+						</button>
+						{#if errorMsg}
+							<span class="text-sm text-error">{errorMsg}</span>
+						{/if}
+					</div>
 				</div>
 			</div>
-
-
-
-			
-
 		</div>
-	</div>
 	{/if}
 
 	<!-- Historial -->

@@ -5,10 +5,10 @@ import { json, error } from '@sveltejs/kit';
 import { ReportProgress } from '@prisma/client';
 
 const ALLOWED_STATUS = new Set<ReportProgress>([
-  'PENDING',
-  'SCHEDULED',
-  'IN_PROGRESS',
-  'COMPLETED'
+	'PENDING',
+	'SCHEDULED',
+	'IN_PROGRESS',
+	'COMPLETED'
 ]);
 
 async function ensureSessionAndOrg(event: Parameters<RequestHandler>[0]) {
@@ -37,10 +37,8 @@ function mustBeOwnerAdminOrAuthor(
 ) {
 	const role = member?.role;
 	const isOwnerOrAdmin = role === 'owner' || role === 'admin';
-
 	const assignedId: string | null = report.assignee?.id ?? report.memberId ?? null;
 	const isAuthor = assignedId != null && assignedId === member?.id;
-
 	if (!isOwnerOrAdmin && !isAuthor) throw error(403, 'Forbidden');
 }
 
@@ -50,17 +48,16 @@ export const GET: RequestHandler = async (event) => {
 
 	const report = await prisma.report.findFirst({
 		where: { id, organization: { slug: organizationSlug }, status: ReportProgress.COMPLETED },
-			include: {
-				assignee: {
-					include: {
-						user: { select: { id: true, name: true, email: true, image: true, role: true } }
-					}
+		include: {
+			assignee: {
+				include: {
+					user: { select: { id: true, name: true, email: true, image: true, role: true } }
 				}
 			}
+		}
 	});
 
 	if (!report) throw error(404, 'Reporte no encontrado');
-
 	mustBeOwnerAdminOrAuthor(member, report as any);
 
 	return json({ report });

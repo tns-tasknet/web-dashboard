@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { PageProps } from './$types';
 	import { page } from '$app/state';
-  	import { onMount, tick } from 'svelte';
+	import { onMount, tick } from 'svelte';
 
 	let { data }: PageProps = $props();
 	const report = $derived(data.report);
@@ -153,10 +153,12 @@
 	];
 
 	const ordered = $derived(
-		[...events].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+		[...events].sort(
+			(a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+		)
 	);
 
-	// [SIMULACIÓN – MENSAJERÍA] Tipos/estado locales para el chat. 
+	// [SIMULACIÓN – MENSAJERÍA] Tipos/estado locales para el chat.
 	// Se pueden reutilizar los tipos y la estructura de estado; si conectas a tu API, reemplaza el array y los flujos marcados abajo.
 	type Role = 'Técnico' | 'Coordinador';
 	type Message = {
@@ -168,22 +170,29 @@
 		mine: boolean; // true si lo envió el usuario actual (Coordinador)
 	};
 
-	// [SIMULACIÓN – MENSAJERÍA] 
+	// [SIMULACIÓN – MENSAJERÍA]
 	// Quitar al añadir IDs con backend
 	const uid = () => Math.random().toString(36).slice(2, 10);
 
-	// [SIMULACIÓN – MENSAJERÍA] 
+	// [SIMULACIÓN – MENSAJERÍA]
 	// Estado de UI del chat
-	let msgLoading = $state(true);   // spinner/skeleton mientras "carga"
-	let msgSending = $state(false);  // botón enviar en progreso
-	let msgError   = $state<string | null>(null);
+	let msgLoading = $state(true); // spinner/skeleton mientras "carga"
+	let msgSending = $state(false); // botón enviar en progreso
+	let msgError = $state<string | null>(null);
 
-	// [SIMULACIÓN – MENSAJERÍA] 
+	// [SIMULACIÓN – MENSAJERÍA]
 	// Cargar el catálogo de equitetas desde el backend tras definirlo
-	const msgAvailableTags = ['#avance', '#pregunta', '#bloqueo', '#riesgo', '#materiales', '#coordinación'];
+	const msgAvailableTags = [
+		'#avance',
+		'#pregunta',
+		'#bloqueo',
+		'#riesgo',
+		'#materiales',
+		'#coordinación'
+	];
 	let msgSelectedTags = $state<string[]>(['#coordinación']);
 
-	// [SIMULACIÓN – MENSAJERÍA] 
+	// [SIMULACIÓN – MENSAJERÍA]
 	// Datos simulados a sustituir por el fetch
 	let messages = $state<Message[]>([
 		{
@@ -212,12 +221,12 @@
 		}
 	]);
 
-	// [SIMULACIÓN – MENSAJERÍA] 
+	// [SIMULACIÓN – MENSAJERÍA]
 	// Composer
 	let msgDraft = $state('');
 	let msgListRef = $state<HTMLDivElement | null>(null);
 
-	// [SIMULACIÓN – MENSAJERÍA] 
+	// [SIMULACIÓN – MENSAJERÍA]
 	// Carga artificial a reemplazar por el fetch
 	onMount(async () => {
 		await new Promise((r) => setTimeout(r, 650));
@@ -228,8 +237,8 @@
 
 	function toggleMsgTag(tag: string) {
 		msgSelectedTags = msgSelectedTags.includes(tag)
-		? msgSelectedTags.filter((t) => t !== tag)
-		: [...msgSelectedTags, tag];
+			? msgSelectedTags.filter((t) => t !== tag)
+			: [...msgSelectedTags, tag];
 	}
 
 	function scrollMessagesToBottom() {
@@ -237,7 +246,7 @@
 		msgListRef.scrollTop = msgListRef.scrollHeight;
 	}
 
-	// [SIMULACIÓN – MENSAJERÍA] 
+	// [SIMULACIÓN – MENSAJERÍA]
 	// Envío de mensajes optimista
 	// Incluir HOOK API adentro para persistencia real.
 	async function sendMessage() {
@@ -279,8 +288,8 @@
 
 	function onComposerKeydown(e: KeyboardEvent) {
 		if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-		e.preventDefault();
-		sendMessage();
+			e.preventDefault();
+			sendMessage();
 		}
 	}
 </script>
@@ -350,7 +359,9 @@
 
 				{#if isCompleted}
 					<div class="alert text-sm alert-info">
-						<span>La orden está <b>Completada</b>. Los campos permanecen de solo lectura.</span>
+						<span
+							>La orden está <b>Completada</b>. Los campos permanecen de solo lectura.</span
+						>
 					</div>
 				{/if}
 
@@ -358,7 +369,9 @@
 					<input type="hidden" name="intent" value="update" />
 
 					<div class="form-control">
-						<label class="label" for="title"><span class="label-text">Título</span></label>
+						<label class="label" for="title"
+							><span class="label-text">Título</span></label
+						>
 						<input
 							id="title"
 							class="input-bordered input w-full"
@@ -371,7 +384,9 @@
 					</div>
 
 					<div class="form-control">
-						<label class="label" for="content"><span class="label-text">Descripción</span></label>
+						<label class="label" for="content"
+							><span class="label-text">Descripción</span></label
+						>
 						<textarea
 							id="content"
 							class="textarea-bordered textarea min-h-[10rem] w-full"
@@ -389,7 +404,7 @@
 
 						<select
 							id="assigneeId"
-							class="select select-bordered w-full"
+							class="select-bordered select w-full"
 							name="assigneeId"
 							bind:value={form.assigneeId}
 							disabled={isCompleted}
@@ -441,7 +456,9 @@
 
 				<div class="space-y-2">
 					{#each ordered as e (e.id)}
-						<div class="flex flex-col items-center rounded px-2 py-3 text-center hover:bg-base-200/50">
+						<div
+							class="flex flex-col items-center rounded px-2 py-3 text-center hover:bg-base-200/50"
+						>
 							<div class="text-sm opacity-70">{fmt(e.timestamp)}</div>
 							<div class="mt-1">
 								<span class={BADGE_CLASS[e.type]}>{LABEL[e.type]}</span>
@@ -477,8 +494,9 @@
 				<div class="flex items-start justify-between">
 					<div>
 						<h2 class="card-title">Mensajes</h2>
-						<p class="opacity-80 text-sm">
-							Chat contextual entre participantes de la orden. Cada mensaje puede llevar etiquetas.
+						<p class="text-sm opacity-80">
+							Chat contextual entre participantes de la orden. Cada mensaje puede
+							llevar etiquetas.
 						</p>
 					</div>
 				</div>
@@ -487,24 +505,34 @@
 				<div class="rounded-box border bg-base-200/40">
 					{#if msgLoading}
 						<!-- Skeleton de carga a reemplazar cuando se implemente el fetch real -->
-						<div class="p-4 space-y-3">
-							<div class="skeleton h-14 w-full"></div>
-							<div class="skeleton h-14 w-5/6"></div>
-							<div class="skeleton h-14 w-4/5"></div>
+						<div class="space-y-3 p-4">
+							<div class="h-14 w-full skeleton"></div>
+							<div class="h-14 w-5/6 skeleton"></div>
+							<div class="h-14 w-4/5 skeleton"></div>
 						</div>
 					{:else}
-						<div class="max-h-[28rem] overflow-y-auto p-3 space-y-3" bind:this={msgListRef}>
+						<div
+							class="max-h-[28rem] space-y-3 overflow-y-auto p-3"
+							bind:this={msgListRef}
+						>
 							{#if messages.length === 0}
-								<div class="p-6 text-center opacity-70">Aún no hay mensajes en esta orden.</div>
+								<div class="p-6 text-center opacity-70">
+									Aún no hay mensajes en esta orden.
+								</div>
 							{:else}
 								{#each messages as m (m.id)}
 									<div class="chat {m.mine ? 'chat-end' : 'chat-start'}">
-										<div class="chat-image avatar">
+										<div class="avatar chat-image">
 											<div class="w-8 rounded-full">
 												{#if m.author.avatarUrl}
-													<img src={m.author.avatarUrl} alt={m.author.name} />
+													<img
+														src={m.author.avatarUrl}
+														alt={m.author.name}
+													/>
 												{:else}
-													<div class="w-8 h-8 rounded-full bg-neutral text-neutral-content grid place-items-center text-xs">
+													<div
+														class="grid h-8 w-8 place-items-center rounded-full bg-neutral text-xs text-neutral-content"
+													>
 														{m.author.name.slice(0, 1).toUpperCase()}
 													</div>
 												{/if}
@@ -521,7 +549,9 @@
 										{#if m.tags.length}
 											<div class="chat-footer mt-1 flex flex-wrap gap-1">
 												{#each m.tags as t}
-													<span class="badge badge-ghost badge-sm">{t}</span>
+													<span class="badge badge-ghost badge-sm"
+														>{t}</span
+													>
 												{/each}
 											</div>
 										{/if}
@@ -534,18 +564,20 @@
 
 				{#if msgError}
 					<!-- Sustituir por el manejo de error del fetch -->
-					<div class="alert alert-error text-sm"><span>{msgError}</span></div>
+					<div class="alert text-sm alert-error"><span>{msgError}</span></div>
 				{/if}
 
 				<!-- Composer -->
 				<div class="rounded-box border">
-					<div class="p-3 border-b">
-						<div class="text-sm opacity-70 mb-2">Etiquetas</div>
+					<div class="border-b p-3">
+						<div class="mb-2 text-sm opacity-70">Etiquetas</div>
 						<div class="flex flex-wrap gap-2">
 							{#each msgAvailableTags as tag}
 								<button
 									type="button"
-									class="btn btn-xs {msgSelectedTags.includes(tag) ? 'btn-primary' : 'btn-outline'}"
+									class="btn btn-xs {msgSelectedTags.includes(tag)
+										? 'btn-primary'
+										: 'btn-outline'}"
 									onclick={() => toggleMsgTag(tag)}
 									aria-pressed={msgSelectedTags.includes(tag)}
 								>
@@ -555,7 +587,7 @@
 						</div>
 					</div>
 
-					<div class="p-3 space-y-3">
+					<div class="space-y-3 p-3">
 						<div class="form-control">
 							<label class="label" for="msg">
 								<span class="label-text">Escribe un mensaje</span>
@@ -563,7 +595,7 @@
 							</label>
 							<textarea
 								id="msg"
-								class="textarea textarea-bordered w-full min-h-28"
+								class="textarea-bordered textarea min-h-28 w-full"
 								placeholder="Actualiza el estado, realiza una consulta o deja un comentario…"
 								bind:value={msgDraft}
 								onkeydown={onComposerKeydown}
@@ -571,17 +603,23 @@
 						</div>
 
 						<div class="flex items-center justify-between">
-							<div class="opacity-70 text-xs">Enviar como <b>Coordinador</b></div>
+							<div class="text-xs opacity-70">Enviar como <b>Coordinador</b></div>
 							<div class="join">
 								<button
-									class="btn btn-ghost btn-sm join-item"
+									class="btn join-item btn-ghost btn-sm"
 									type="button"
-									onclick={() => (msgDraft = msgDraft + (msgDraft.endsWith('\n') || msgDraft.length === 0 ? '' : '\n') + '#avance ')}
+									onclick={() =>
+										(msgDraft =
+											msgDraft +
+											(msgDraft.endsWith('\n') || msgDraft.length === 0
+												? ''
+												: '\n') +
+											'#avance ')}
 									title="Insertar etiqueta #avance"
 								>
 								</button>
 								<button
-									class="btn btn-primary btn-sm join-item"
+									class="btn join-item btn-sm btn-primary"
 									type="button"
 									onclick={sendMessage}
 									disabled={msgSending || !msgDraft.trim()}
@@ -594,7 +632,8 @@
 				</div>
 
 				<div class="text-xs opacity-60">
-					Sugerencia: usa etiquetas para facilitar el filtrado (#pregunta, #avance, #bloqueo, #riesgo, #materiales).
+					Sugerencia: usa etiquetas para facilitar el filtrado (#pregunta, #avance,
+					#bloqueo, #riesgo, #materiales).
 				</div>
 			</div>
 		</div>
