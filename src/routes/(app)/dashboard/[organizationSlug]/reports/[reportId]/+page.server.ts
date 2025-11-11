@@ -40,12 +40,10 @@ export const load = (async (event) => {
 	const isOwnerOrAdmin = member?.role === 'owner' || member?.role === 'admin';
 	if (!isOwnerOrAdmin && report.memberId !== member?.id) error(403, 'Forbidden');
 
-	// Traer rectificaciones desde la API (no Prisma directo desde la página)
 	const res = await event.fetch(
-		`/api/v1/${encodeURIComponent(organizationSlug)}/corrections?reportId=${reportId}`
+		`/api/v1/${encodeURIComponent(organizationSlug)}/reports/${reportId}/corrections`
 	);
 	if (!res.ok) {
-		// Propaga el error de la API para mantener coherencia
 		throw error(res.status, await res.text());
 	}
 	const { corrections } = await res.json();

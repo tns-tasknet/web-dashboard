@@ -2,20 +2,17 @@
 	import { page } from '$app/state';
 	import type { PageProps } from './$types';
 
-	// Types locales (solo para el tab actual)
 	type Correction = {
 		id: string;
 		content: string;
 		reportId: number;
 		memberId: string;
 		createdAt: string | Date;
-		author: { name: string; role: string }; // role viene ya como "Coordinador" / "Técnico"
+		author: { name: string; role: string };
 	};
 
-	// --- Props
 	let { data }: PageProps = $props();
 
-	// --- Constantes UI (las tuyas originales, intactas)
 	type TabKey = 'details' | 'evidence' | 'signatures' | 'rectifications' | 'history';
 	type Evidence = { id: string | number; url: string; name?: string };
 	type EventType = 'CREATED' | 'ASSIGNED' | 'REASSIGNED' | 'STATE_CHANGED' | 'NOTE' | 'CLOSED';
@@ -64,7 +61,6 @@
 		CLOSED: 'Cierre'
 	};
 
-	// --- Helpers
 	function formatDate(value: unknown) {
 		if (!value) return '—';
 		const d = new Date(value as any);
@@ -104,7 +100,6 @@
 		}
 	}
 
-	// --- Derivadas de ruta/datos
 	const report = $derived(data.report);
 	const slug = $derived(page.params.organizationSlug);
 
@@ -124,7 +119,7 @@
 
 	let tab = $state<TabKey>('details');
 
-	// Evidencias (placeholder local; cuando tengas API real, cámbialo a $derived(data.report.evidences ?? []))
+	// Evidencias (placeholder local; $derived(data.report.evidences ?? []))
 	const evidences: Evidence[] = [
 		{ id: 1, url: 'https://picsum.photos/400', name: 'Foto A' },
 		{ id: 2, url: 'https://picsum.photos/401', name: 'Foto B' }
@@ -159,10 +154,8 @@
 		(a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
 	);
 
-	// --- Rectificaciones (reales: vienen del server load)
 	let rectifications = $state<Correction[]>(data.corrections ?? []);
 
-	// Formulario nueva rectificación (via API)
 	let creating = $state(false);
 	let errorMsg = $state<string | null>(null);
 	let draft = $state('');
@@ -175,22 +168,25 @@
 			return;
 		}
 		if (!report?.id || !slug) {
-			errorMsg = 'No se encontró el contexto del reporte.';
+			errorMsg = 'Contexto de reporte no disponible.';
 			return;
 		}
+
 		creating = true;
 		try {
-			const res = await fetch(`/api/v1/${encodeURIComponent(slug)}/corrections`, {
-				method: 'POST',
-				headers: { 'content-type': 'application/json' },
-				body: JSON.stringify({ reportId: report.id, content })
-			});
+			const res = await fetch(
+				`/api/v1/${encodeURIComponent(slug)}/reports/${report.id}/corrections`,
+				{
+					method: 'POST',
+					headers: { 'content-type': 'application/json' },
+					body: JSON.stringify({ content })
+				}
+			);
 			if (!res.ok) {
 				errorMsg = await res.text();
 				return;
 			}
 			const { correction } = (await res.json()) as { correction: Correction };
-			// Insertar al inicio (orden desc por fecha)
 			rectifications = [...rectifications, correction];
 			draft = '';
 		} catch (e: any) {

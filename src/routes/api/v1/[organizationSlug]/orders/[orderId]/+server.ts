@@ -92,8 +92,8 @@ export const PATCH: RequestHandler = async (event) => {
 		content: string;
 		status: ReportProgress;
 		assigneeId: string | null;
-		activities: string[] | string; 
-		materials: string[] | string; 
+		activities: string[] | string;
+		materials: string[] | string;
 	}>;
 	try {
 		payload = await event.request.json();
