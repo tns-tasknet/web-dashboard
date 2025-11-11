@@ -1,102 +1,67 @@
 import type { RequestHandler } from './$types';
 import { auth } from '$lib/auth';
 import { prisma } from '$lib/server/prisma';
-import { json } from '@sveltejs/kit';
-import type { Prisma } from '@prisma/client';
-import { ReportProgress } from '@prisma/client';
+import { json, error } from '@sveltejs/kit';
+import type { ReportProgress } from '@prisma/client';
 
-export const GET: RequestHandler = async (event) => {
+const ALLOWED_STATUS = new Set<ReportProgress>([
+  'PENDING',
+  'SCHEDULED',
+  'IN_PROGRESS',
+  'COMPLETED'
+]);
+
+async function ensureSessionAndOrg(event: Parameters<RequestHandler>[0]) {
 	const session = await auth.api.getSession({ headers: event.request.headers });
-	if (!session) return new Response(null, { status: 401 });
+	if (!session) throw error(401, 'Unauthorized');
 
+	const organizationSlug = event.params.organizationSlug!;
 	await auth.api.setActiveOrganization({
-		body: { organizationSlug: event.params.organizationSlug },
+		body: { organizationSlug },
 		headers: event.request.headers
 	});
 
 	const member = await auth.api.getActiveMember({ headers: event.request.headers });
+	return { organizationSlug, member };
+}
 
-	// Parámetros
-	const usp = event.url.searchParams;
-	const limitParam = Number(usp.get('limit'));
-	const offsetParam = Number(usp.get('offset'));
-	const q = (usp.get('q') ?? '').trim();
+function parseReportId(event: Parameters<RequestHandler>[0]) {
+	const id = Number(event.params.reportId);
+	if (!Number.isFinite(id)) throw error(400, 'Parámetro inválido: reportId');
+	return id;
+}
 
-	// Ordenamiento
-	const sort = (usp.get('sort') ?? 'closedAt') as
-		| 'id'
-		| 'title'
-		| 'memberName'
-		| 'closedAt'
-		| 'createdAt';
-	const dir = (usp.get('dir') === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc';
+function mustBeOwnerAdminOrAuthor(
+	member: { role?: string; id?: string } | null,
+	report: { assignee?: { id: string } | null; memberId?: string | null }
+) {
+	const role = member?.role;
+	const isOwnerOrAdmin = role === 'owner' || role === 'admin';
 
-	const take =
-		Number.isFinite(limitParam) && limitParam > 0 && limitParam <= 100 ? limitParam : 30;
-	const skip = Number.isFinite(offsetParam) && offsetParam >= 0 ? offsetParam : 0;
+	const assignedId: string | null = report.assignee?.id ?? report.memberId ?? null;
+	const isAuthor = assignedId != null && assignedId === member?.id;
 
-	// Filtro base
-	const where: Prisma.ReportWhereInput = {
-		organization: { is: { slug: event.params.organizationSlug } },
-		status: ReportProgress.COMPLETED,
-		...(member && member.role !== 'owner' && member.role !== 'admin'
-			? { assigneeId: member.id }
-			: {})
-	};
+	if (!isOwnerOrAdmin && !isAuthor) throw error(403, 'Forbidden');
+}
 
-	// Búsqueda simple
-	if (q) {
-		where.OR = [
-			{ title: { contains: q, mode: 'insensitive' } },
-			{ content: { contains: q, mode: 'insensitive' } }
-		];
-	}
+export const GET: RequestHandler = async (event) => {
+	const { organizationSlug, member } = await ensureSessionAndOrg(event);
+	const id = parseReportId(event);
 
-	// orderBy dinámico
-	let orderBy: Prisma.ReportOrderByWithRelationInput;
-	switch (sort) {
-		case 'id':
-			orderBy = { id: dir };
-			break;
-		case 'title':
-			orderBy = { title: dir };
-			break;
-		case 'memberName':
-			orderBy = {
-				assignee: { user: { name: dir } }
-			} as Prisma.ReportOrderByWithRelationInput;
-			break;
-		case 'createdAt':
-			orderBy = { createdAt: dir };
-			break;
-		case 'closedAt':
-		default:
-			orderBy = { completedAt: dir } as Prisma.ReportOrderByWithRelationInput;
-			break;
-	}
-
-	// Carga de datos
-	const [reports, total] = await Promise.all([
-		prisma.report.findMany({
-			where,
-			orderBy,
-			skip,
-			take,
+	const report = await prisma.report.findFirst({
+		where: { id, organization: { slug: organizationSlug } },
 			include: {
 				assignee: {
 					include: {
-						user: { select: { id: true, name: true, email: true } }
+						user: { select: { id: true, name: true, email: true, image: true, role: true } }
 					}
 				}
 			}
-		}),
-		prisma.report.count({ where })
-	]);
-
-	return json({
-		reports,
-		total,
-		limit: take,
-		offset: skip
 	});
+
+	if (!report) throw error(404, 'Reporte no encontrado');
+
+	mustBeOwnerAdminOrAuthor(member, report as any);
+
+	return json({ report });
 };
