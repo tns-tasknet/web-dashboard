@@ -16,20 +16,6 @@ export const GET: RequestHandler = async (event) => {
 
 	const member = await auth.api.getActiveMember({ headers: event.request.headers });
 
-	if (member?.role === 'member') {
-		const orders = await prisma.report.findMany({
-			where: {
-				assignee: {
-					id: member.id
-				}
-			}
-		});
-
-		return json({
-			orders
-		});
-	}
-
 	// Parámetros
 	const usp = event.url.searchParams;
 	const isPaginated = usp.get('paginated') === 'true';
@@ -55,7 +41,7 @@ export const GET: RequestHandler = async (event) => {
 		organization: { is: { slug: event.params.organizationSlug } },
 		status: { not: ReportProgress.COMPLETED },
 		...(member && member.role !== 'owner' && member.role !== 'admin'
-			? { assigneeId: member.id }
+			? { assigneeId: { id: member.id } }
 			: {})
 	};
 
