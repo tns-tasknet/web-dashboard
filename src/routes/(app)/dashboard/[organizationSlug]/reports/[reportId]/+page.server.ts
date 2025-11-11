@@ -42,7 +42,8 @@ export const load = (async (event) => {
 
 	if (!report) error(404, 'Orden no encontrada');
 
-	if (member?.role !== 'owner' && report?.memberId !== member?.id) error(403, 'Forbidden');
+	const isOwnerOrAdmin = member?.role === 'owner' || member?.role === 'admin';
+	if (!isOwnerOrAdmin && report?.memberId !== member?.id) error(403, 'Forbidden');
 
 	return { report };
 }) satisfies PageServerLoad;
