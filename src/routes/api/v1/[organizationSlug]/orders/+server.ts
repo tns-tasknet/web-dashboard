@@ -41,7 +41,7 @@ export const GET: RequestHandler = async (event) => {
 		organization: { is: { slug: event.params.organizationSlug } },
 		status: { not: ReportProgress.COMPLETED },
 		...(member && member.role !== 'owner' && member.role !== 'admin'
-			? { assigneeId: { id: member.id } }
+			? { assignee: { id: member.id } }
 			: {})
 	};
 
