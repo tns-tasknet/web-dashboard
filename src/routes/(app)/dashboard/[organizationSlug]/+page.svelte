@@ -39,7 +39,7 @@
 	const kpi_sla = $derived(data.dashboard.kpis.sla);
 	const split = $derived(data.dashboard.split);
 
-	// Gráfico 1: Órdenes abiertas (cumulativo) 
+	// Gráfico 1: Órdenes abiertas (cumulativo)
 	const optionsArea: ApexOptions = $derived({
 		series: [{ name: 'Órdenes abiertas', data: openSeries }],
 		chart: {
@@ -73,7 +73,7 @@
 		}
 	});
 
-	// Gráfico 2: Pie por estado 
+	// Gráfico 2: Pie por estado
 	const optionsPie: ApexOptions = $derived({
 		series: [split.pending, split.inProgress, split.scheduled],
 		colors: ['#f97316', '#1C64F2', '#9061F9'],
