@@ -589,14 +589,10 @@
 
 					<div class="space-y-3 p-3">
 						<div class="form-control">
-							<label class="label" for="msg">
-								<span class="label-text">Escribe un mensaje</span>
-								<span class="label-text-alt">Ctrl/Cmd + Enter para enviar</span>
-							</label>
 							<textarea
 								id="msg"
 								class="textarea-bordered textarea min-h-28 w-full"
-								placeholder="Actualiza el estado, realiza una consulta o deja un comentario…"
+								placeholder="Solicita un cambio de estado, realiza una consulta o deja un comentario"
 								bind:value={msgDraft}
 								onkeydown={onComposerKeydown}
 							></textarea>

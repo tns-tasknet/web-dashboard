@@ -59,20 +59,37 @@
 								</div>
 							</button>
 
-							<ul
-								class="dropdown-content menu z-[100] mt-3 w-56 menu-sm rounded-box bg-base-100 p-2 shadow"
-								tabindex="-1"
+							<div
+								class="dropdown-content z-[100] mt-3 w-72 rounded-box bg-base-100 shadow"
 							>
-								<li class="menu-title px-2 py-1">
-									<span class="text-xs opacity-60">
-										{$session.data.user.name ?? $session.data.user.email}
-									</span>
-								</li>
-								<li><a href="/profile">Perfil</a></li>
-								<li><button disabled>Preferencias</button></li>
-								<li class="mt-1 mb-1"><div class="divider my-1"></div></li>
-								<li><button onclick={handleSignOut}>Cerrar sesión</button></li>
-							</ul>
+								<div class="flex items-center gap-3 p-3">
+									<div class="avatar">
+										<div class="w-12 rounded-full">
+											<img
+												src={$session.data.user.image ?? fallbackAvatar}
+												alt={$session.data.user.name ?? 'Usuario'}
+												referrerpolicy="no-referrer"
+											/>
+										</div>
+									</div>
+									<div class="min-w-0">
+										<div class="truncate font-medium">
+											{$session.data.user.name ?? $session.data.user.email}
+										</div>
+										<div class="truncate text-xs opacity-70">
+											{$session.data.user.email}
+										</div>
+									</div>
+								</div>
+
+								<div class="divider my-0"></div>
+
+								<ul class="menu menu-sm p-2">
+									<li><a href="/profile">Perfil</a></li>
+									<li><button disabled>Preferencias</button></li>
+									<li><button onclick={handleSignOut}>Cerrar sesión</button></li>
+								</ul>
+							</div>
 						</div>
 					{/if}
 				</div>
