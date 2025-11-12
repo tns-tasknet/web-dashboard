@@ -177,6 +177,7 @@ export const PATCH: RequestHandler = async (event) => {
 		payload.evidence.length > 0
 	) {
 		const buffers: Buffer[] = [];
+		console.log(payload.evidence);
 
 		for (const file of payload.evidence) {
 			if (file instanceof File) {
