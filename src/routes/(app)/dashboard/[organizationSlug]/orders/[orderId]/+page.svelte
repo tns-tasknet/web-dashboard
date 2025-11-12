@@ -262,25 +262,28 @@
 			author: { name: 'Coordinador — Tú', role: 'Coordinador' },
 			mine: true
 		};
-		messages = [...messages, optimistic];
+		messages.push(optimistic);
 		msgDraft = '';
 		await tick();
 		scrollMessagesToBottom();
 
 		try {
 			// === HOOK API para persistencia real ===
-			// const res = await fetch(`/api/orders/${report?.id}/messages`, {
-			//     method: 'POST',
-			//     headers: { 'content-type': 'application/json' },
-			//     body: JSON.stringify({ text: optimistic.text, tags: optimistic.tags })
-			// });
-			// if (!res.ok) throw new Error('Error al enviar mensaje');
-			// const saved = await res.json(); // { id, text, createdAt, tags, author, mine }
-			// messages = messages.map(m => m.id === optimistic.id ? saved : m);
+			const res = await fetch(
+				`/api/v1/${page.params.organizationSlug}/orders/${report?.id}/messages`,
+				{
+					method: 'POST',
+					headers: { 'content-type': 'application/json' },
+					body: JSON.stringify({ text: optimistic.text, tags: optimistic.tags })
+				}
+			);
+			if (!res.ok) throw new Error('Error al enviar mensaje');
+			const saved = await res.json(); // { id, text, createdAt, tags, author, mine }
+			messages = messages.map((m) => (m.id === optimistic.id ? saved : m));
 		} catch (e) {
 			msgError = 'No se pudo enviar el mensaje. Intenta nuevamente.';
 			// === Para revertir el mensaje optimista ===
-			// messages = messages.filter((m) => m.id !== optimistic.id);
+			messages = messages.filter((m) => m.id !== optimistic.id);
 		} finally {
 			msgSending = false;
 		}

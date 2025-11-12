@@ -140,8 +140,13 @@ model Report {
   deviceId   String?
   activities String[]
   materials  String[]
-  startedAt  DateTime?
-  closedAt   DateTime?
+  signature  Bytes?
+  evidence   Bytes[]
+
+  scheduledAt DateTime?
+  startedAt   DateTime?
+  closedAt    DateTime?
+  completedAt DateTime?
 
   assignee Member? @relation(fields: [memberId], references: [id])
   memberId String?
@@ -171,8 +176,9 @@ model Corrections {
 }
 
 model Message {
-  id      String @id @default(uuid())
+  id      String   @id @default(uuid())
   content String
+  tags    String[]
 
   sender   Member @relation(fields: [memberId], references: [id])
   memberId String

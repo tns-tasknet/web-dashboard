@@ -94,6 +94,8 @@ export const PATCH: RequestHandler = async (event) => {
 		assigneeId: string | null;
 		activities: string[] | string;
 		materials: string[] | string;
+		signature: File | null;
+		evidence: File[];
 	}>;
 	try {
 		payload = await event.request.json();
@@ -126,6 +128,17 @@ export const PATCH: RequestHandler = async (event) => {
 
 	if (payload.status !== undefined) {
 		const next = nextValidStatus(current.status as ReportProgress, payload.status);
+		switch (next) {
+			case 'COMPLETED':
+				data.completedAt = new Date();
+				break;
+			case 'IN_PROGRESS':
+				data.startedAt = new Date();
+				break;
+			case 'SCHEDULED':
+				data.scheduledAt = new Date();
+				break;
+		}
 		data.status = next;
 	}
 
@@ -150,6 +163,30 @@ export const PATCH: RequestHandler = async (event) => {
 	if (payload.materials !== undefined) {
 		const list = coerceStringList(payload.materials);
 		data.materials = { set: list };
+	}
+
+	if (payload.signature !== undefined && payload.signature !== null) {
+		const arrayBuffer = await payload.signature.arrayBuffer();
+		const buffer = Buffer.from(arrayBuffer);
+		data.signature = buffer;
+	}
+
+	if (
+		payload.evidence !== undefined &&
+		payload.evidence !== null &&
+		payload.evidence.length > 0
+	) {
+		const buffers: Buffer[] = [];
+
+		for (const file of payload.evidence) {
+			if (file instanceof File) {
+				const arrayBuffer = await file.arrayBuffer();
+				const buffer = Buffer.from(arrayBuffer);
+				buffers.push(buffer);
+			}
+		}
+
+		data.evidence = buffers;
 	}
 
 	if (Object.keys(data).length === 0) {
