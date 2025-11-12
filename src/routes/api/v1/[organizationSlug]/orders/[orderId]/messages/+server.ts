@@ -1,6 +1,7 @@
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { auth } from '$lib/auth';
+import { prisma } from '$lib/server/prisma';
 
 async function ensureSessionAndOrg(event: Parameters<RequestHandler>[0]) {
 	const session = await auth.api.getSession({ headers: event.request.headers });
