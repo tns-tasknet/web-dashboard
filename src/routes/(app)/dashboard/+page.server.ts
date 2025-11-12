@@ -12,20 +12,20 @@ export const load = (async (event) => {
 
 	const orgs = await prisma.organization.findMany({
 		where: {
-			slug: 'org1'
+			slug: 'hello-world'
 		}
 	});
 
-	if (!orgs) error(404, 'Create organization org1 first');
+	if (!orgs) error(404, 'Create organization hello-world first');
 
 	await auth.api.setActiveOrganization({
 		body: {
-			organizationSlug: 'org1'
+			organizationSlug: 'hello-world'
 		},
 		headers: event.request.headers
 	});
 
-	redirect(302, '/dashboard/org1');
+	redirect(302, '/dashboard/hello-world');
 
 	/*
 		onclick={async () => {
