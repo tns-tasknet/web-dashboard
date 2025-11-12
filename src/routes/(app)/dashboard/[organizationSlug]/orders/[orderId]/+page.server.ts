@@ -1,7 +1,6 @@
 import { auth } from '$lib/auth';
 import { error, redirect, type Actions } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import type { ReportProgress } from '@prisma/client';
 
 type TechnicianOption = { value: string; label: string };
 
@@ -10,13 +9,6 @@ type EventLike = {
 	params: Record<string, string | undefined>;
 	fetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 };
-
-const ALLOWED_STATUS = new Set<ReportProgress>([
-	'PENDING',
-	'SCHEDULED',
-	'IN_PROGRESS',
-	'COMPLETED'
-]);
 
 async function ensureSessionAndOrg(event: EventLike) {
 	const session = await auth.api.getSession({ headers: event.request.headers });
@@ -40,10 +32,9 @@ function parseOrderId(event: { params: Record<string, string | undefined> }) {
 
 async function fetchTechnicianOptions(event: EventLike, org: string) {
 	const usp = new URLSearchParams({
-		paginated: 'true',
 		limit: '500',
 		offset: '0',
-		sort: 'createdAt',
+		sort: 'name',
 		dir: 'asc'
 	});
 
@@ -75,7 +66,6 @@ export const load = (async (event) => {
 	if (!res.ok) throw error(res.status, 'No fue posible cargar la orden');
 
 	const { report } = await res.json();
-
 	const technicianOptions = await fetchTechnicianOptions(event, organizationSlug);
 
 	return { report, technicianOptions };
@@ -83,7 +73,7 @@ export const load = (async (event) => {
 
 export const actions: Actions = {
 	default: async (event) => {
-		const { organizationSlug, member } = await ensureSessionAndOrg(event);
+		const { organizationSlug } = await ensureSessionAndOrg(event);
 		const id = parseOrderId(event);
 
 		const fd = await event.request.formData();
@@ -101,18 +91,13 @@ export const actions: Actions = {
 			title?: string;
 			content?: string;
 			status?: string;
-			assigneeId?: string | null;
+			assigneeId?: string;
 		} = {};
 
 		payload.title = title;
 		payload.content = content;
 		if (statusRaw) payload.status = statusRaw;
-
-		if (assigneeIdRaw === '__UNASSIGN__') {
-			payload.assigneeId = null;
-		} else if (assigneeIdRaw !== '') {
-			payload.assigneeId = assigneeIdRaw;
-		}
+		if (assigneeIdRaw) payload.assigneeId = assigneeIdRaw;
 
 		const resPatch = await event.fetch(`/api/v1/${organizationSlug}/orders/${id}`, {
 			method: 'PATCH',
@@ -126,7 +111,9 @@ export const actions: Actions = {
 			try {
 				const j = await resPatch.json();
 				if (j?.error) msg = j.error;
-			} catch {}
+			} catch {
+				// ignore JSON parse errors
+			}
 			throw error(resPatch.status, msg);
 		}
 

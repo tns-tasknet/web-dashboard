@@ -21,6 +21,26 @@
 	const org = page.params.organizationSlug;
 	const DEBOUNCE_MS = 200;
 
+	// --- Estados (mismo mapeo visual que en otras pantallas) ---
+	const STATUS_LABEL: Record<string, string> = {
+		PENDING: 'Pendiente',
+		SCHEDULED: 'Agendada',
+		IN_PROGRESS: 'En progreso',
+		COMPLETED: 'Completada'
+	};
+	const STATUS_BADGE: Record<string, string> = {
+		PENDING: 'badge-warning',
+		SCHEDULED: 'badge-info',
+		IN_PROGRESS: 'badge-primary',
+		COMPLETED: 'badge-ghost'
+	};
+	function displayStatus(code?: string | null) {
+		return code ? (STATUS_LABEL[code] ?? code) : '—';
+	}
+	function badgeClass(code?: string | null) {
+		return code ? (STATUS_BADGE[code] ?? 'badge-outline') : 'badge-outline';
+	}
+
 	let search = $state('');
 	let committedSearch = $state('');
 	let pageIndex = $state(0);
@@ -156,7 +176,8 @@
 	function fmtDate(d?: Date | string) {
 		if (!d) return '—';
 		const dd = typeof d === 'string' ? new Date(d) : d;
-		return dd.toLocaleString();
+		if (isNaN(dd.getTime())) return '—';
+		return dd.toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' });
 	}
 
 	onDestroy(() => {
@@ -328,11 +349,11 @@
 			</tbody>
 		{:else if reports.length === 0}
 			<tbody>
-				<tr
-					><td colspan="5"
-						><div class="p-6 text-center opacity-70">Sin resultados.</div></td
-					></tr
-				>
+				<tr>
+					<td colspan="5">
+						<div class="p-6 text-center opacity-70">Sin resultados.</div>
+					</td>
+				</tr>
 			</tbody>
 		{:else}
 			<tbody>
@@ -346,8 +367,19 @@
 						<td class="py-3 align-middle font-mono">{String(r.id)}</td>
 						<td class="py-3">{r.title ?? '—'}</td>
 						<td class="py-3">{r.assignee?.user?.name ?? '—'}</td>
-						<td class="py-3"><div class="badge badge-outline">{r.status}</div></td>
-						<td class="py-3">{fmtDate(r.createdAt)}</td>
+
+						<!-- Estado con badge y etiqueta amigable -->
+						<td class="py-3">
+							<div
+								class={'badge ' + badgeClass(r.status as unknown as string)}
+								title={r.status ?? undefined}
+								aria-label={displayStatus(r.status as unknown as string)}
+							>
+								{displayStatus(r.status as unknown as string)}
+							</div>
+						</td>
+
+						<td class="py-3">{fmtDate(r.createdAt as any)}</td>
 					</tr>
 				{/each}
 			</tbody>

@@ -4,13 +4,6 @@ import { prisma } from '$lib/server/prisma';
 import { json, error } from '@sveltejs/kit';
 import { ReportProgress } from '@prisma/client';
 
-const ALLOWED_STATUS = new Set<ReportProgress>([
-	'PENDING',
-	'SCHEDULED',
-	'IN_PROGRESS',
-	'COMPLETED'
-]);
-
 async function ensureSessionAndOrg(event: Parameters<RequestHandler>[0]) {
 	const session = await auth.api.getSession({ headers: event.request.headers });
 	if (!session) throw error(401, 'Unauthorized');
@@ -42,12 +35,27 @@ function mustBeOwnerAdminOrAuthor(
 	if (!isOwnerOrAdmin && !isAuthor) throw error(403, 'Forbidden');
 }
 
+// --- helpers binarios ---
+function bufToB64(x: unknown): string | null {
+	if (!x) return null;
+	if (typeof x === 'string') return x; // ya es base64 o data URL
+	if (x instanceof Uint8Array) return Buffer.from(x).toString('base64');
+	if (typeof x === 'object' && (x as any).type === 'Buffer' && Array.isArray((x as any).data)) {
+		return Buffer.from((x as any).data).toString('base64');
+	}
+	return null;
+}
+
 export const GET: RequestHandler = async (event) => {
 	const { organizationSlug, member } = await ensureSessionAndOrg(event);
 	const id = parseReportId(event);
 
 	const report = await prisma.report.findFirst({
-		where: { id, organization: { slug: organizationSlug }, status: ReportProgress.COMPLETED },
+		where: {
+			id,
+			organization: { slug: organizationSlug },
+			status: ReportProgress.COMPLETED
+		},
 		include: {
 			assignee: {
 				include: {
@@ -60,5 +68,23 @@ export const GET: RequestHandler = async (event) => {
 	if (!report) throw error(404, 'Reporte no encontrado');
 	mustBeOwnerAdminOrAuthor(member, report as any);
 
-	return json({ report });
+	// Serializa binarios a base64 (solo strings serializables en JSON)
+	const safeReport: any = { ...report };
+
+	// evidence: bytea[]
+	if (Array.isArray((report as any).evidence)) {
+		safeReport.evidence = (report as any).evidence
+			.map((e: unknown) => bufToB64(e))
+			.filter((s: string | null): s is string => Boolean(s));
+	}
+
+	// signature: bytea
+	if ((report as any).signature != null) {
+		const s = bufToB64((report as any).signature);
+		// si no se pudo convertir, evita mandar algo no serializable
+		if (s) safeReport.signature = s;
+		else safeReport.signature = null;
+	}
+
+	return json({ report: safeReport });
 };

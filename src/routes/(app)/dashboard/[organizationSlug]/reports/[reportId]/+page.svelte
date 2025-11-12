@@ -13,14 +13,22 @@
 
 	let { data }: PageProps = $props();
 
+	let preview: Evidence | null = $state(null);
+	let modalEl: HTMLDialogElement | null = $state(null);
+
+	function openPreview(item: Evidence) {
+		preview = item;
+		modalEl?.showModal();
+	}
+
 	type TabKey = 'details' | 'evidence' | 'signatures' | 'rectifications' | 'history';
 	type Evidence = { id: string | number; url: string; name?: string };
+
 	type EventType = 'CREATED' | 'ASSIGNED' | 'REASSIGNED' | 'STATE_CHANGED' | 'NOTE' | 'CLOSED';
 	type HistoryEvent = {
 		id: string | number;
 		timestamp: string | Date;
 		type: EventType;
-		actor?: string;
 		payload?: Record<string, unknown>;
 		description?: string;
 	};
@@ -29,20 +37,13 @@
 		PENDING: 'Pendiente',
 		SCHEDULED: 'Agendada',
 		IN_PROGRESS: 'En progreso',
-		COMPLETED: 'Orden cerrada'
+		COMPLETED: 'Completada'
 	};
 	const STATUS_BADGE: Record<string, string> = {
 		PENDING: 'badge-warning',
 		SCHEDULED: 'badge-info',
 		IN_PROGRESS: 'badge-primary',
 		COMPLETED: 'badge-ghost'
-	};
-	const TAB_LABEL: Record<TabKey, string> = {
-		details: 'Detalles',
-		evidence: 'Evidencia',
-		signatures: 'Firmas',
-		rectifications: 'Rectificaciones',
-		history: 'Historial'
 	};
 	const BADGE_CLASS: Record<EventType, string> = {
 		CREATED: 'badge badge-success',
@@ -80,26 +81,22 @@
 	function fmt(ts: string | Date) {
 		return formatDate(ts);
 	}
+
+	function displayStatus(code?: string | null) {
+		return code ? (STATUS_LABEL[code as keyof typeof STATUS_LABEL] ?? code) : '—';
+	}
+
 	function describe(e: HistoryEvent) {
 		if (e.description) return e.description;
 		switch (e.type) {
-			case 'CREATED':
-				return `Orden creada${e.actor ? ` por ${e.actor}` : ''}.`;
-			case 'ASSIGNED':
-				return `Asignada a ${e.payload?.to ?? '—'}${e.actor ? ` por ${e.actor}` : ''}.`;
-			case 'REASSIGNED':
-				return `Reasignada a ${e.payload?.to ?? '—'}${e.actor ? ` por ${e.actor}` : ''}.`;
 			case 'STATE_CHANGED':
-				return `Estado: ${e.payload?.from ?? '—'} → ${e.payload?.to ?? '—'}${e.actor ? ` (por ${e.actor})` : ''}.`;
-			case 'NOTE':
-				return `Nota${e.actor ? ` de ${e.actor}` : ''}.`;
-			case 'CLOSED':
-				return `Orden cerrada${e.actor ? ` por ${e.actor}` : ''}.`;
+				return `Estado: ${e.payload?.from ?? '—'} → ${e.payload?.to ?? '—'}.`;
 			default:
 				return '';
 		}
 	}
 
+	// Datos base
 	const report = $derived(data.report);
 	const slug = $derived(page.params.organizationSlug);
 
@@ -119,41 +116,130 @@
 
 	let tab = $state<TabKey>('details');
 
-	// Evidencias (placeholder local; $derived(data.report.evidences ?? []))
-	const evidences: Evidence[] = [
-		{ id: 1, url: 'https://picsum.photos/400', name: 'Foto A' },
-		{ id: 2, url: 'https://picsum.photos/401', name: 'Foto B' }
-	];
-	let preview: Evidence | null = $state(null);
-	let modalEl = $state<HTMLDialogElement | null>(null);
-	function openPreview(item: Evidence) {
-		preview = item;
-		modalEl?.showModal();
+	// ===== Helpers: binarios/base64 -> data URL (solo imágenes) =====
+	function toUint8(x: unknown): Uint8Array | null {
+		if (x instanceof Uint8Array) return x;
+		if (x instanceof ArrayBuffer) return new Uint8Array(x);
+		if (Array.isArray(x)) return new Uint8Array(x as number[]);
+		// { type:'Buffer', data:number[] }
+		if (
+			x &&
+			typeof x === 'object' &&
+			(x as any).type === 'Buffer' &&
+			Array.isArray((x as any).data)
+		) {
+			return new Uint8Array((x as any).data);
+		}
+		return null;
 	}
 
-	// Historial (placeholder)
-	const events: HistoryEvent[] = [
-		{ id: 1, timestamp: '2025-10-24T14:31:00Z', type: 'CREATED', actor: 'Coordinador' },
-		{
-			id: 2,
-			timestamp: '2025-10-24T16:05:00Z',
-			type: 'ASSIGNED',
-			actor: 'Coordinador',
-			payload: { to: 'Juan Pérez' }
-		},
-		{
-			id: 3,
-			timestamp: '2025-10-24T18:12:00Z',
-			type: 'STATE_CHANGED',
-			actor: 'Juan Pérez',
-			payload: { from: 'IN_PROGRESS', to: 'COMPLETED' }
-		},
-		{ id: 4, timestamp: '2025-10-25T18:12:00Z', type: 'CLOSED', actor: 'Coordinador' }
-	];
-	const ordered = [...events].sort(
-		(a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-	);
+	function u8ToBase64(u8: Uint8Array): string {
+		let bin = '';
+		for (let i = 0; i < u8.length; i++) bin += String.fromCharCode(u8[i]);
+		return btoa(bin);
+	}
 
+	// Detecta MIME por magic numbers (PNG/JPEG/WEBP). Sin PDF.
+	function guessImageMimeFromBase64(b64: string): string {
+		if (!b64) return 'image/png';
+		let head = '';
+		try {
+			head = atob(b64.slice(0, 128));
+		} catch {
+			return 'image/png';
+		}
+		if (head.startsWith('\x89PNG\r\n\x1a\n')) return 'image/png';
+		if (head.startsWith('\xFF\xD8\xFF')) return 'image/jpeg';
+		if (head.startsWith('RIFF') && head.slice(8, 12) === 'WEBP') return 'image/webp';
+		return 'image/png';
+	}
+
+	// Acepta: base64 | data URL | http(s) | Uint8Array | ArrayBuffer | number[] | Buffer-like
+	function toDataUrl(b: unknown): string {
+		if (!b) return '';
+		if (typeof b === 'string') {
+			if (b.startsWith('data:') || b.startsWith('http')) return b;
+			const mime = guessImageMimeFromBase64(b);
+			return `data:${mime};base64,${b}`;
+		}
+		const u8 = toUint8(b);
+		if (!u8) return '';
+		const b64 = u8ToBase64(u8);
+		const mime = guessImageMimeFromBase64(b64);
+		return `data:${mime};base64,${b64}`;
+	}
+
+	// Construcción de evidencias y firma (el load manda base64/string)
+	function buildEvidences(r: any) {
+		const arr = (r?.evidence ?? []) as unknown[];
+		const out: { id: number; url: string; name: string }[] = [];
+		for (let i = 0; i < arr.length; i++) {
+			const url = toDataUrl(arr[i]);
+			if (url) out.push({ id: i + 1, url, name: `Evidencia ${i + 1}` });
+		}
+		return out;
+	}
+
+	const evidences = $derived(buildEvidences(report));
+	const signatureUrl = $derived(report?.signature ? toDataUrl((report as any).signature) : '');
+
+	// Construcción del historial
+	function makeHistoryFromReport(r: any): HistoryEvent[] {
+		if (!r) return [];
+		let id = 1;
+		const ev: HistoryEvent[] = [];
+
+		if (r.createdAt) {
+			ev.push({
+				id: id++,
+				timestamp: r.createdAt,
+				type: 'CREATED',
+				description: 'Orden creada.'
+			});
+		}
+
+		if (r.scheduledAt) {
+			ev.push({
+				id: id++,
+				timestamp: r.scheduledAt,
+				type: 'STATE_CHANGED',
+				payload: { from: displayStatus('PENDING'), to: displayStatus('SCHEDULED') }
+			});
+		}
+
+		if (r.startedAt) {
+			const fromLbl = r.scheduledAt ? displayStatus('SCHEDULED') : displayStatus('PENDING');
+			ev.push({
+				id: id++,
+				timestamp: r.startedAt,
+				type: 'STATE_CHANGED',
+				payload: { from: fromLbl, to: displayStatus('IN_PROGRESS') }
+			});
+		}
+
+		if (r.completedAt) {
+			ev.push({
+				id: id++,
+				timestamp: r.completedAt,
+				type: 'STATE_CHANGED',
+				payload: { from: displayStatus('IN_PROGRESS'), to: displayStatus('COMPLETED') }
+			});
+			ev.push({
+				id: id++,
+				timestamp: r.completedAt,
+				type: 'CLOSED',
+				description: 'Orden cerrada.'
+			});
+		}
+
+		ev.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+		return ev;
+	}
+
+	const events: HistoryEvent[] = $derived(makeHistoryFromReport(report));
+	const ordered = $derived(events);
+
+	// Rectificaciones
 	let rectifications = $state<Correction[]>(data.corrections ?? []);
 
 	let creating = $state(false);
@@ -376,25 +462,30 @@
 			<div class="card-body">
 				<h2 class="card-title">Evidencia</h2>
 				<p class="mb-3 text-sm opacity-70">Galería de archivos adjuntos.</p>
-				<div class="grid grid-cols-2 gap-3 md:grid-cols-4">
-					{#each evidences as e}
-						<button
-							type="button"
-							class="group image-full card aspect-square overflow-hidden bg-base-200 focus:outline-offset-2"
-							onclick={() => openPreview(e)}
-							aria-label={`Ampliar ${e.name ?? 'evidencia'}`}
-						>
-							<figure class="h-full w-full">
-								<img
-									src={e.url}
-									alt={e.name ?? 'Evidencia'}
-									loading="lazy"
-									class="h-full w-full object-cover transition group-hover:scale-105"
-								/>
-							</figure>
-						</button>
-					{/each}
-				</div>
+
+				{#if evidences.length === 0}
+					<div class="p-6 text-center opacity-60">Sin evidencias.</div>
+				{:else}
+					<div class="grid grid-cols-2 gap-3 md:grid-cols-4">
+						{#each evidences as e}
+							<button
+								type="button"
+								class="group image-full card aspect-square overflow-hidden bg-base-200 focus:outline-offset-2"
+								onclick={() => openPreview(e)}
+								aria-label={`Ampliar ${e.name ?? 'evidencia'}`}
+							>
+								<figure class="h-full w-full">
+									<img
+										src={e.url}
+										alt={e.name ?? 'Evidencia'}
+										loading="lazy"
+										class="h-full w-full object-cover transition group-hover:scale-105"
+									/>
+								</figure>
+							</button>
+						{/each}
+					</div>
+				{/if}
 			</div>
 		</div>
 
@@ -403,11 +494,13 @@
 			<div class="modal-box max-w-5xl">
 				<h3 class="mb-2 text-lg font-bold">{preview?.name ?? 'Vista previa'}</h3>
 				<div class="w-full">
-					<img
-						src={preview?.url}
-						alt={preview?.name ?? 'Evidencia'}
-						class="h-auto w-full rounded object-contain"
-					/>
+					{#if preview}
+						<img
+							src={preview.url}
+							alt={preview.name ?? 'Evidencia'}
+							class="h-auto w-full rounded object-contain"
+						/>
+					{/if}
 				</div>
 				<div class="modal-action">
 					<form method="dialog">
@@ -421,7 +514,7 @@
 		</dialog>
 	{/if}
 
-	<!-- Firmas -->
+	<!-- Firma -->
 	{#if tab === 'signatures'}
 		<div class="card mt-4 border bg-base-100">
 			<div class="card-body">
@@ -429,14 +522,29 @@
 				<div class="grid grid-cols-1 gap-6 md:grid-cols-3">
 					<div class="space-y-2">
 						<div class="text-sm opacity-60">Técnico</div>
+
 						<div
 							class="flex h-32 items-center justify-center rounded border bg-base-200 p-3"
 						>
-							<span class="opacity-60">Imagen/Vector de la firma</span>
+							{#if signatureUrl}
+								<div class="relative h-full w-full rounded bg-base-100">
+									<img
+										src={signatureUrl}
+										alt="Firma del técnico"
+										class="absolute inset-0 h-full w-full rounded object-contain"
+										decoding="async"
+									/>
+								</div>
+							{:else}
+								<span class="opacity-60">Sin firma</span>
+							{/if}
 						</div>
+
 						<div class="text-xs opacity-70">
-							<strong>Firmado por:</strong> Juan Pérez<br />
-							<strong>Timestamp:</strong> 2025-10-25 18:10<br />
+							<strong>Firmado por:</strong>
+							{report?.assignee?.user?.name ?? '—'}<br />
+							<strong>Timestamp:</strong>
+							{fmt(report?.completedAt ?? report?.updatedAt ?? new Date())}<br />
 						</div>
 					</div>
 				</div>
@@ -504,26 +612,45 @@
 				<p class="mb-3 text-sm opacity-70">
 					Secuencia de eventos relevantes hasta el cierre.
 				</p>
-				<div class="space-y-2">
-					{#each ordered as e (e.id)}
-						<div
-							class="flex flex-col items-center rounded px-2 py-3 text-center hover:bg-base-200/50"
-						>
-							<div class="text-sm opacity-70">{fmt(e.timestamp)}</div>
-							<div class="mt-1">
-								<span class={BADGE_CLASS[e.type]}>{EVENT_LABEL[e.type]}</span>
+
+				<div class="space-y-2" role="list">
+					{#if ordered.length === 0}
+						<div class="p-6 text-center opacity-70">Sin eventos aún.</div>
+					{:else}
+						{#each ordered as e, i (e.id)}
+							<div
+								class="flex flex-col items-center rounded px-2 py-3 text-center hover:bg-base-200/50"
+								role="listitem"
+							>
+								<div class="text-sm opacity-70">{fmt(e.timestamp)}</div>
+
+								<div class="mt-1">
+									<span
+										class={BADGE_CLASS[e.type]}
+										aria-label={EVENT_LABEL[e.type]}
+										title={e.payload?.from && e.payload?.to
+											? `${e.payload.from} → ${e.payload.to}`
+											: undefined}
+									>
+										{EVENT_LABEL[e.type]}
+									</span>
+								</div>
+
+								<div class="mt-2 timeline-box">
+									{describe(e)}
+									{#if e.type === 'STATE_CHANGED' && e.payload?.note}
+										<div class="mt-1 text-xs opacity-70">
+											Nota: {e.payload.note}
+										</div>
+									{/if}
+								</div>
 							</div>
-							<div class="mt-2 timeline-box">
-								{describe(e)}
-								{#if e.type === 'STATE_CHANGED' && e.payload?.note}
-									<div class="mt-1 text-xs opacity-70">
-										Nota: {e.payload.note}
-									</div>
-								{/if}
-							</div>
-						</div>
-						<div class="divider my-0"></div>
-					{/each}
+
+							{#if i < ordered.length - 1}
+								<div class="divider my-0"></div>
+							{/if}
+						{/each}
+					{/if}
 				</div>
 
 				<style>

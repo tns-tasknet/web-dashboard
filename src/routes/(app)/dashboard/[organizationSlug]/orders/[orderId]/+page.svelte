@@ -2,10 +2,13 @@
 	import type { PageProps } from './$types';
 	import { page } from '$app/state';
 	import { onMount, tick } from 'svelte';
+	import { authClient } from '$lib/client';
 
 	let { data }: PageProps = $props();
 	const report = $derived(data.report);
 	const slug = $derived(page.params.organizationSlug);
+
+	const session = authClient.useSession();
 
 	const STATUS_LABEL: Record<string, string> = {
 		PENDING: 'Pendiente',
@@ -24,13 +27,13 @@
 	type TabKey = 'details' | 'history' | 'messages';
 	type Option = { value: string; label: string };
 
+	// Tipos de eventos (dejamos los no usados por si luego amplías)
 	type EventType = 'CREATED' | 'ASSIGNED' | 'REASSIGNED' | 'STATE_CHANGED' | 'NOTE' | 'CLOSED';
 
 	type HistoryEvent = {
 		id: string | number;
 		timestamp: string | Date;
 		type: EventType;
-		actor?: string;
 		payload?: {
 			from?: string;
 			to?: string;
@@ -86,11 +89,6 @@
 			: null
 	);
 
-	const techOptionsForRender: Option[] = $derived([
-		...(currentAssigneeOpt ? [currentAssigneeOpt] : []),
-		...technicianOptions
-	]);
-
 	const createdAtText = $derived(
 		report?.createdAt
 			? new Date(report.createdAt as any).toLocaleString('es-CL', {
@@ -128,60 +126,117 @@
 		return d.toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' });
 	}
 
+	function displayStatus(code?: string | null) {
+		return code ? (STATUS_LABEL[code as keyof typeof STATUS_LABEL] ?? code) : '—';
+	}
+
+	function makeHistoryFromReport(r: any): HistoryEvent[] {
+		if (!r) return [];
+		let id = 1;
+		const ev: HistoryEvent[] = [];
+
+		// Creación (PENDIENTE)
+		if (r.createdAt) {
+			ev.push({
+				id: id++,
+				timestamp: r.createdAt,
+				type: 'CREATED',
+				description: 'Orden creada.'
+			});
+		}
+
+		// PENDIENTE -> AGENDADA
+		if (r.scheduledAt) {
+			ev.push({
+				id: id++,
+				timestamp: r.scheduledAt,
+				type: 'STATE_CHANGED',
+				payload: { from: displayStatus('PENDING'), to: displayStatus('SCHEDULED') }
+			});
+		}
+
+		// (PENDIENTE o AGENDADA) -> EN PROGRESO
+		if (r.startedAt) {
+			const fromLbl = r.scheduledAt ? displayStatus('SCHEDULED') : displayStatus('PENDING');
+			ev.push({
+				id: id++,
+				timestamp: r.startedAt,
+				type: 'STATE_CHANGED',
+				payload: { from: fromLbl, to: displayStatus('IN_PROGRESS') }
+			});
+		}
+
+		// EN PROGRESO -> COMPLETADA + cierre
+		if (r.completedAt) {
+			ev.push({
+				id: id++,
+				timestamp: r.completedAt,
+				type: 'STATE_CHANGED',
+				payload: { from: displayStatus('IN_PROGRESS'), to: displayStatus('COMPLETED') }
+			});
+			ev.push({
+				id: id++,
+				timestamp: r.completedAt,
+				type: 'CLOSED',
+				description: 'Orden cerrada.'
+			});
+		}
+
+		ev.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+		return ev;
+	}
+
 	function describe(e: HistoryEvent) {
 		if (e.description) return e.description;
 		switch (e.type) {
-			case 'CREATED':
-				return `Orden creada${e.actor ? ` por ${e.actor}` : ''}.`;
-			case 'ASSIGNED':
-				return `Asignada a ${e.payload?.to ?? '—'}${e.actor ? ` por ${e.actor}` : ''}.`;
-			case 'REASSIGNED':
-				return `Reasignada a ${e.payload?.to ?? '—'}${e.actor ? ` por ${e.actor}` : ''}.`;
 			case 'STATE_CHANGED':
-				return `Estado: ${e.payload?.from ?? '—'} → ${e.payload?.to ?? '—'}${e.actor ? ` (por ${e.actor})` : ''}.`;
-			case 'NOTE':
-				return `Nota${e.actor ? ` de ${e.actor}` : ''}.`;
-			case 'CLOSED':
-				return `Orden cerrada${e.actor ? ` por ${e.actor}` : ''}.`;
+				return `Estado: ${e.payload?.from ?? '—'} → ${e.payload?.to ?? '—'}.`;
 			default:
 				return '';
 		}
 	}
 
-	const events: HistoryEvent[] = (data as any)?.report?.history ?? [
-		{ id: 1, timestamp: '2025-10-24T14:31:00Z', type: 'CREATED', actor: 'Coordinador' }
-	];
+	const events: HistoryEvent[] = $derived(makeHistoryFromReport(report));
+	const ordered = $derived(events);
 
-	const ordered = $derived(
-		[...events].sort(
-			(a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-		)
-	);
-
-	// [SIMULACIÓN – MENSAJERÍA] Tipos/estado locales para el chat.
-	// Se pueden reutilizar los tipos y la estructura de estado; si conectas a tu API, reemplaza el array y los flujos marcados abajo.
+	// --------- Mensajería ---------
 	type Role = 'Técnico' | 'Coordinador';
 	type Message = {
 		id: string;
 		text: string;
 		createdAt: Date;
 		tags: string[];
-		author: { name: string; role: Role; avatarUrl?: string | null };
-		mine: boolean; // true si lo envió el usuario actual (Coordinador)
+		author: { name: string; role: Role; avatarUrl?: string | null; email?: string | null };
+		mine: boolean;
 	};
 
-	// [SIMULACIÓN – MENSAJERÍA]
-	// Quitar al añadir IDs con backend
-	const uid = () => Math.random().toString(36).slice(2, 10);
+	const roleFromUserRole = (backendRole?: string | null): Role =>
+		backendRole === 'owner' || backendRole === 'admin' ? 'Coordinador' : 'Técnico';
 
-	// [SIMULACIÓN – MENSAJERÍA]
-	// Estado de UI del chat
-	let msgLoading = $state(true); // spinner/skeleton mientras "carga"
-	let msgSending = $state(false); // botón enviar en progreso
+	const sanitizeTags = (tags: string[] | undefined | null): string[] => {
+		if (!tags || !Array.isArray(tags)) return [];
+		return tags
+			.map((t) => (t || '').toString().trim())
+			.filter(Boolean)
+			.map((t) => (t.startsWith('#') ? t : `#${t}`));
+	};
+
+	function extractInlineTags(text: string): string[] {
+		if (!text) return [];
+		const re = /#([\p{L}\p{N}_-]+)/gu;
+		const found = new Set<string>();
+		let m: RegExpExecArray | null;
+		while ((m = re.exec(text)) !== null) {
+			const tag = `#${m[1]}`.trim();
+			if (tag.length > 1) found.add(tag);
+		}
+		return Array.from(found);
+	}
+
+	let msgLoading = $state(true);
+	let msgSending = $state(false);
 	let msgError = $state<string | null>(null);
 
-	// [SIMULACIÓN – MENSAJERÍA]
-	// Cargar el catálogo de equitetas desde el backend tras definirlo
 	const msgAvailableTags = [
 		'#avance',
 		'#pregunta',
@@ -192,47 +247,52 @@
 	];
 	let msgSelectedTags = $state<string[]>(['#coordinación']);
 
-	// [SIMULACIÓN – MENSAJERÍA]
-	// Datos simulados a sustituir por el fetch
-	let messages = $state<Message[]>([
-		{
-			id: uid(),
-			text: 'Buenos días. Iniciamos intervención en sitio a las 09:10. Verificación eléctrica OK.',
-			createdAt: new Date(Date.now() - 1000 * 60 * 60 * 5),
-			tags: ['#avance'],
-			author: { name: 'Alonso Leones', role: 'Técnico', avatarUrl: null },
-			mine: false
-		},
-		{
-			id: uid(),
-			text: 'Queda pendiente confirmar número de serie del equipo secundario (foto borrosa).',
-			createdAt: new Date(Date.now() - 1000 * 60 * 60 * 4 + 1000 * 60 * 12),
-			tags: ['#pregunta', '#bloqueo'],
-			author: { name: 'Alonso Leones', role: 'Técnico', avatarUrl: null },
-			mine: false
-		},
-		{
-			id: uid(),
-			text: 'Recibido. ¿Puedes reenviar foto enfocada a la placa para validar contra inventario?',
-			createdAt: new Date(Date.now() - 1000 * 60 * 60 * 3 + 1000 * 60 * 25),
-			tags: ['#coordinación'],
-			author: { name: 'María Soto', role: 'Coordinador', avatarUrl: null },
-			mine: false
-		}
-	]);
-
-	// [SIMULACIÓN – MENSAJERÍA]
-	// Composer
+	let messages = $state<Message[]>([]);
 	let msgDraft = $state('');
 	let msgListRef = $state<HTMLDivElement | null>(null);
 
-	// [SIMULACIÓN – MENSAJERÍA]
-	// Carga artificial a reemplazar por el fetch
+	async function fetchMessages() {
+		msgLoading = true;
+		msgError = null;
+		try {
+			const res = await fetch(
+				`/api/v1/${page.params.organizationSlug}/orders/${report?.id}/messages`
+			);
+			if (!res.ok) throw new Error(`HTTP ${res.status}`);
+			const json = await res.json();
+			const currentEmail = $session.data?.user?.email ?? null;
+
+			const normalized: Message[] = (json.messages ?? []).map((m: any) => {
+				const name = m?.sender?.user?.name ?? m?.sender?.user?.email ?? '—';
+				const email = m?.sender?.user?.email ?? null;
+				const avatarUrl = m?.sender?.user?.image ?? null;
+				const role = roleFromUserRole(m?.sender?.user?.role);
+				const mine = !!(currentEmail && email && currentEmail === email);
+
+				return {
+					id: String(m.id),
+					text: String(m.content ?? ''),
+					createdAt: new Date(m.createdAt),
+					tags: sanitizeTags(m.tags),
+					author: { name, role, avatarUrl, email },
+					mine
+				};
+			});
+
+			normalized.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+			messages = normalized;
+			await tick();
+			scrollMessagesToBottom();
+		} catch (e) {
+			msgError = 'No se pudieron cargar los mensajes.';
+			console.error(e);
+		} finally {
+			msgLoading = false;
+		}
+	}
+
 	onMount(async () => {
-		await new Promise((r) => setTimeout(r, 650));
-		msgLoading = false;
-		await tick();
-		scrollMessagesToBottom();
+		await fetchMessages();
 	});
 
 	function toggleMsgTag(tag: string) {
@@ -246,20 +306,28 @@
 		msgListRef.scrollTop = msgListRef.scrollHeight;
 	}
 
-	// [SIMULACIÓN – MENSAJERÍA]
-	// Envío de mensajes optimista
-	// Incluir HOOK API adentro para persistencia real.
 	async function sendMessage() {
 		if (!msgDraft.trim() || msgSending) return;
 		msgSending = true;
 		msgError = null;
 
+		const currentName = $session.data?.user?.name ?? $session.data?.user?.email ?? 'Tú';
+		const currentEmail = $session.data?.user?.email ?? null;
+
+		const inlineTags = extractInlineTags(msgDraft);
+		const outTags = Array.from(new Set(sanitizeTags([...msgSelectedTags, ...inlineTags])));
+
 		const optimistic: Message = {
-			id: uid(),
+			id: crypto.randomUUID?.() ?? Math.random().toString(36).slice(2, 10),
 			text: msgDraft.trim(),
 			createdAt: new Date(),
-			tags: [...msgSelectedTags],
-			author: { name: 'Coordinador — Tú', role: 'Coordinador' },
+			tags: outTags,
+			author: {
+				name: `${currentName}`,
+				role: 'Coordinador',
+				avatarUrl: $session.data?.user?.image ?? null,
+				email: currentEmail
+			},
 			mine: true
 		};
 		messages.push(optimistic);
@@ -268,22 +336,21 @@
 		scrollMessagesToBottom();
 
 		try {
-			// === HOOK API para persistencia real ===
 			const res = await fetch(
 				`/api/v1/${page.params.organizationSlug}/orders/${report?.id}/messages`,
 				{
 					method: 'POST',
 					headers: { 'content-type': 'application/json' },
-					body: JSON.stringify({ text: optimistic.text, tags: optimistic.tags })
+					body: JSON.stringify({ text: optimistic.text, tags: outTags })
 				}
 			);
 			if (!res.ok) throw new Error('Error al enviar mensaje');
-			const saved = await res.json(); // { id, text, createdAt, tags, author, mine }
-			messages = messages.map((m) => (m.id === optimistic.id ? saved : m));
+
+			await fetchMessages();
 		} catch (e) {
 			msgError = 'No se pudo enviar el mensaje. Intenta nuevamente.';
-			// === Para revertir el mensaje optimista ===
 			messages = messages.filter((m) => m.id !== optimistic.id);
+			console.error(e);
 		} finally {
 			msgSending = false;
 		}
@@ -458,25 +525,35 @@
 				</p>
 
 				<div class="space-y-2">
-					{#each ordered as e (e.id)}
-						<div
-							class="flex flex-col items-center rounded px-2 py-3 text-center hover:bg-base-200/50"
-						>
-							<div class="text-sm opacity-70">{fmt(e.timestamp)}</div>
-							<div class="mt-1">
-								<span class={BADGE_CLASS[e.type]}>{LABEL[e.type]}</span>
-							</div>
-							<div class="mt-2 timeline-box">
-								{describe(e)}
-								{#if e.type === 'STATE_CHANGED' && e.payload?.note}
-									<div class="mt-1 text-xs opacity-70">
-										Nota: {e.payload.note}
+					<div class="space-y-2">
+						{#if ordered.length === 0}
+							<div class="p-6 text-center opacity-70">Sin eventos aún.</div>
+						{:else}
+							{#each ordered as e, i (e.id)}
+								<div
+									class="flex flex-col items-center rounded px-2 py-3 text-center hover:bg-base-200/50"
+								>
+									<div class="text-sm opacity-70">{fmt(e.timestamp)}</div>
+									<div class="mt-1">
+										<span
+											class={BADGE_CLASS[e.type]}
+											title={e.payload?.from && e.payload?.to
+												? `${e.payload.from} → ${e.payload.to}`
+												: undefined}
+										>
+											{LABEL[e.type]}
+										</span>
 									</div>
+									<div class="mt-2 timeline-box">
+										{describe(e)}
+									</div>
+								</div>
+								{#if i < ordered.length - 1}
+									<div class="divider my-0"></div>
 								{/if}
-							</div>
-						</div>
-						<div class="divider my-0"></div>
-					{/each}
+							{/each}
+						{/if}
+					</div>
 				</div>
 
 				<style>
