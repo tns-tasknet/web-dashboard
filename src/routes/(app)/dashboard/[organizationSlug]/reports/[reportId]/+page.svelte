@@ -116,72 +116,63 @@
 
 	let tab = $state<TabKey>('details');
 
-	// ===== Helpers: binarios/base64 -> data URL (solo imágenes) =====
-	function toUint8(x: unknown): Uint8Array | null {
-		if (x instanceof Uint8Array) return x;
-		if (x instanceof ArrayBuffer) return new Uint8Array(x);
-		if (Array.isArray(x)) return new Uint8Array(x as number[]);
-		// { type:'Buffer', data:number[] }
-		if (
-			x &&
-			typeof x === 'object' &&
-			(x as any).type === 'Buffer' &&
-			Array.isArray((x as any).data)
-		) {
-			return new Uint8Array((x as any).data);
-		}
-		return null;
+// ===== Helpers: binarios/base64 -> data URL (solo imágenes) =====
+function toUint8(x: unknown): Uint8Array | null {
+	if (x instanceof Uint8Array) return x;
+	if (x instanceof ArrayBuffer) return new Uint8Array(x);
+	if (Array.isArray(x)) return new Uint8Array(x as number[]);
+	// { type:'Buffer', data:number[] }
+	if (x && typeof x === 'object' && (x as any).type === 'Buffer' && Array.isArray((x as any).data)) {
+		return new Uint8Array((x as any).data);
 	}
+	return null;
+}
 
-	function u8ToBase64(u8: Uint8Array): string {
-		let bin = '';
-		for (let i = 0; i < u8.length; i++) bin += String.fromCharCode(u8[i]);
-		return btoa(bin);
+function u8ToBase64(u8: Uint8Array): string {
+	let bin = '';
+	for (let i = 0; i < u8.length; i++) bin += String.fromCharCode(u8[i]);
+	return btoa(bin);
+}
+
+// Detecta MIME por magic numbers (PNG/JPEG/WEBP)
+function guessImageMimeFromBase64(b64: string): string {
+	if (!b64) return 'image/png';
+	let head = '';
+	try { head = atob(b64.slice(0, 128)); } catch { return 'image/png'; }
+	if (head.startsWith('\x89PNG\r\n\x1a\n')) return 'image/png';
+	if (head.startsWith('\xFF\xD8\xFF')) return 'image/jpeg';
+	if (head.startsWith('RIFF') && head.slice(8, 12) === 'WEBP') return 'image/webp';
+	return 'image/png';
+}
+
+// Acepta: base64 | data URL | http(s) | Uint8Array | ArrayBuffer | number[] | Buffer-like
+function toDataUrl(b: unknown): string {
+	if (!b) return '';
+	if (typeof b === 'string') {
+		if (b.startsWith('data:') || b.startsWith('http')) return b;
+		const mime = guessImageMimeFromBase64(b);
+		return `data:${mime};base64,${b}`;
 	}
+	const u8 = toUint8(b);
+	if (!u8) return '';
+	const b64 = u8ToBase64(u8);
+	const mime = guessImageMimeFromBase64(b64);
+	return `data:${mime};base64,${b64}`;
+}
 
-	// Detecta MIME por magic numbers (PNG/JPEG/WEBP). Sin PDF.
-	function guessImageMimeFromBase64(b64: string): string {
-		if (!b64) return 'image/png';
-		let head = '';
-		try {
-			head = atob(b64.slice(0, 128));
-		} catch {
-			return 'image/png';
-		}
-		if (head.startsWith('\x89PNG\r\n\x1a\n')) return 'image/png';
-		if (head.startsWith('\xFF\xD8\xFF')) return 'image/jpeg';
-		if (head.startsWith('RIFF') && head.slice(8, 12) === 'WEBP') return 'image/webp';
-		return 'image/png';
+// Construcción de evidencias y firma 
+function buildEvidences(r: any) {
+	const arr = (r?.evidence ?? []) as unknown[];
+	const out: { id: number; url: string; name: string }[] = [];
+	for (let i = 0; i < arr.length; i++) {
+		const url = toDataUrl(arr[i]);
+		if (url) out.push({ id: i + 1, url, name: `Evidencia ${i + 1}` });
 	}
+	return out;
+}
 
-	// Acepta: base64 | data URL | http(s) | Uint8Array | ArrayBuffer | number[] | Buffer-like
-	function toDataUrl(b: unknown): string {
-		if (!b) return '';
-		if (typeof b === 'string') {
-			if (b.startsWith('data:') || b.startsWith('http')) return b;
-			const mime = guessImageMimeFromBase64(b);
-			return `data:${mime};base64,${b}`;
-		}
-		const u8 = toUint8(b);
-		if (!u8) return '';
-		const b64 = u8ToBase64(u8);
-		const mime = guessImageMimeFromBase64(b64);
-		return `data:${mime};base64,${b64}`;
-	}
-
-	// Construcción de evidencias y firma (el load manda base64/string)
-	function buildEvidences(r: any) {
-		const arr = (r?.evidence ?? []) as unknown[];
-		const out: { id: number; url: string; name: string }[] = [];
-		for (let i = 0; i < arr.length; i++) {
-			const url = toDataUrl(arr[i]);
-			if (url) out.push({ id: i + 1, url, name: `Evidencia ${i + 1}` });
-		}
-		return out;
-	}
-
-	const evidences = $derived(buildEvidences(report));
-	const signatureUrl = $derived(report?.signature ? toDataUrl((report as any).signature) : '');
+const evidences = $derived(buildEvidences(report));
+const signatureUrl = $derived(report?.signature ? toDataUrl((report as any).signature) : '');
 
 	// Construcción del historial
 	function makeHistoryFromReport(r: any): HistoryEvent[] {
@@ -514,43 +505,44 @@
 		</dialog>
 	{/if}
 
-	<!-- Firma -->
-	{#if tab === 'signatures'}
-		<div class="card mt-4 border bg-base-100">
-			<div class="card-body">
-				<h2 class="card-title">Firmas</h2>
-				<div class="grid grid-cols-1 gap-6 md:grid-cols-3">
-					<div class="space-y-2">
-						<div class="text-sm opacity-60">Técnico</div>
+<!-- Firmas -->
+{#if tab === 'signatures'}
+  <div class="card mt-4 border bg-base-100">
+    <div class="card-body">
+      <h2 class="card-title">Firmas</h2>
+      <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
+        <div class="space-y-2">
+          <div class="text-sm opacity-60">Técnico</div>
 
-						<div
-							class="flex h-32 items-center justify-center rounded border bg-base-200 p-3"
-						>
-							{#if signatureUrl}
-								<div class="relative h-full w-full rounded bg-base-100">
-									<img
-										src={signatureUrl}
-										alt="Firma del técnico"
-										class="absolute inset-0 h-full w-full rounded object-contain"
-										decoding="async"
-									/>
-								</div>
-							{:else}
-								<span class="opacity-60">Sin firma</span>
-							{/if}
-						</div>
+<div class="flex h-32 items-center justify-center rounded border bg-base-200 p-3">
+  {#if signatureUrl}
+    <div class="relative h-full w-full rounded bg-base-100">
+      <img
+        src={signatureUrl}
+        alt="Firma del técnico"
+        class="absolute inset-0 h-full w-full object-contain rounded"
+        decoding="async"
+      />
+    </div>
+  {:else}
+    <span class="opacity-60">Sin firma</span>
+  {/if}
+</div>
 
-						<div class="text-xs opacity-70">
-							<strong>Firmado por:</strong>
-							{report?.assignee?.user?.name ?? '—'}<br />
-							<strong>Timestamp:</strong>
-							{fmt(report?.completedAt ?? report?.updatedAt ?? new Date())}<br />
-						</div>
-					</div>
-				</div>
-			</div>
-		</div>
-	{/if}
+
+          <div class="text-xs opacity-70">
+            <strong>Firmado por:</strong>
+            {report?.assignee?.user?.name ?? '—'}<br />
+            <strong>Timestamp:</strong>
+            {fmt(report?.completedAt ?? report?.updatedAt ?? new Date())}<br />
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{/if}
+
+
 
 	<!-- Rectificaciones -->
 	{#if tab === 'rectifications'}
