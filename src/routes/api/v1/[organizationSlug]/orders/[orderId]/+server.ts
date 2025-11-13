@@ -166,6 +166,7 @@ export const PATCH: RequestHandler = async (event) => {
 	}
 
 	if (payload.signature !== undefined && payload.signature !== null) {
+		console.log(payload.signature);
 		const arrayBuffer = await payload.signature.arrayBuffer();
 		const buffer = Buffer.from(arrayBuffer);
 		data.signature = buffer;
