@@ -37,7 +37,16 @@
 
 		<div class="flex flex-1 flex-col bg-gray-200">
 			<div class="flex items-center bg-base-200 p-2 shadow-2xs">
-				<div class="items-center text-xl font-semibold">Dashboard</div>
+				<div class="items-center text-xl font-semibold">
+					Dashboard
+					{#if page.route.id?.startsWith('/(app)/dashboard/[organizationSlug]/orders')}
+						- Órdenes
+					{:else if page.route.id?.startsWith('/(app)/dashboard/[organizationSlug]/reports')}
+						- Reportes
+					{:else if page.route.id?.startsWith('/(app)/dashboard/[organizationSlug]/technicians')}
+						- Técnicos
+					{/if}
+				</div>
 
 				<div class="flex flex-1 items-center justify-end gap-x-4 rounded-3xl p-2">
 					<Bell
@@ -130,8 +139,9 @@
 			</li>
 
 			<li
-				class="rounded-l-sm rounded-r-lg {page.route.id ===
-				'/(app)/dashboard/[organizationSlug]/orders'
+				class="rounded-l-sm rounded-r-lg {page.route.id?.startsWith(
+					'/(app)/dashboard/[organizationSlug]/orders'
+				)
 					? 'border-l-4 bg-gray-300 font-bold'
 					: ''}"
 			>
@@ -141,8 +151,9 @@
 			</li>
 
 			<li
-				class="rounded-l-sm rounded-r-lg {page.route.id ===
-				'/(app)/dashboard/[organizationSlug]/reports'
+				class="rounded-l-sm rounded-r-lg {page.route.id?.startsWith(
+					'/(app)/dashboard/[organizationSlug]/reports'
+				)
 					? 'border-l-4 bg-gray-300 font-bold'
 					: ''}"
 			>
@@ -152,8 +163,9 @@
 			</li>
 
 			<li
-				class="rounded-l-sm rounded-r-lg {page.route.id ===
-				'/(app)/dashboard/[organizationSlug]/technicians'
+				class="rounded-l-sm rounded-r-lg {page.route.id?.startsWith(
+					'/(app)/dashboard/[organizationSlug]/technicians'
+				)
 					? 'border-l-4 bg-gray-300 font-bold'
 					: ''}"
 			>
