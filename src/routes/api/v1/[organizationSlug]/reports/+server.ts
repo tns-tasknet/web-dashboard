@@ -50,7 +50,31 @@ export const GET: RequestHandler = async (event) => {
 			where,
 			orderBy: { createdAt: 'desc' },
 			skip,
-			take
+			take,
+			select: {
+				id: true,
+				title: true,
+				content: true,
+				response: true,
+				status: true,
+				longitude: true,
+				latitude: true,
+				deviceId: true,
+				activities: true,
+				materials: true,
+				createdAt: true,
+				completedAt: true,
+				closedAt: true,
+				scheduledAt: true,
+				startedAt: true,
+				assignee: true,
+				memberId: true,
+				organization: true,
+				organizationId: true,
+				messages: true,
+				corrections: true,
+				updatedAt: true
+			}
 		}),
 		prisma.report.count({ where })
 	]);
