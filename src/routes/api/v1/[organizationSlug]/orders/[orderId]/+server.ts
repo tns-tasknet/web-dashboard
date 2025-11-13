@@ -94,7 +94,7 @@ export const PATCH: RequestHandler = async (event) => {
 		assigneeId: string | null;
 		activities: string[] | string;
 		materials: string[] | string;
-		signature: File | null;
+		signature: string | null;
 		evidence: File[];
 	}>;
 	try {
@@ -166,10 +166,15 @@ export const PATCH: RequestHandler = async (event) => {
 	}
 
 	if (payload.signature !== undefined && payload.signature !== null) {
-		console.log(payload.signature);
-		const arrayBuffer = await payload.signature.arrayBuffer();
-		const buffer = Buffer.from(arrayBuffer);
-		data.signature = buffer;
+		const sig = payload.signature;
+
+		let buffer: Buffer | null = null;
+		const base64 = sig.split(',')[1];
+		buffer = Buffer.from(base64, 'base64');
+
+		if (buffer) {
+			data.signature = buffer;
+		}
 	}
 
 	if (
