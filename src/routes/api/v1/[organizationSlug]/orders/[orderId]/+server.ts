@@ -95,7 +95,7 @@ export const PATCH: RequestHandler = async (event) => {
 		activities: string[] | string;
 		materials: string[] | string;
 		signature: string | null;
-		evidence: File[];
+		evidence: string[];
 	}>;
 	try {
 		payload = await event.request.json();
@@ -185,10 +185,13 @@ export const PATCH: RequestHandler = async (event) => {
 		const buffers: Buffer[] = [];
 		console.log(payload.evidence);
 
-		for (const file of payload.evidence) {
-			if (file instanceof File) {
-				const arrayBuffer = await file.arrayBuffer();
-				const buffer = Buffer.from(arrayBuffer);
+		for (const item of payload.evidence) {
+			let buffer: Buffer | null = null;
+
+			const base64 = item.split(',')[1];
+			buffer = Buffer.from(base64, 'base64');
+
+			if (buffer) {
 				buffers.push(buffer);
 			}
 		}
