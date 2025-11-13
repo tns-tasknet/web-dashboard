@@ -87,7 +87,7 @@ export const load = (async (event) => {
 			status: 'COMPLETED',
 			closedAt: { gte: from, lte: to }
 		},
-		select: { closedAt: true }
+		select: { closedAt: true, completedAt: true }
 	});
 
 	// Para SLA: creadas en el rango que tienen closedAt
@@ -114,7 +114,7 @@ export const load = (async (event) => {
 
 	const closedBuckets = Array(days.length).fill(0);
 	for (const r of closedInRange) {
-		const key = startOfDay(r.closedAt!).getTime();
+		const key = startOfDay(r.completedAt!).getTime();
 		const idx = indexByDay.get(key);
 		if (idx != null) closedBuckets[idx]++;
 	}
